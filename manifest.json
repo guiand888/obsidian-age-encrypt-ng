@@ -1,0 +1,10 @@
+{
+	"id": "obsidian-age-encrypt",
+	"name": "Age Encrypt",
+	"version": "1.0.0",
+	"minAppVersion": "1.4.0",
+	"description": "Secure content encryption using age encryption library",
+	"author": "Your Name",
+	"authorUrl": "https://github.com/yourusername",
+	"isDesktopOnly": false
+}
