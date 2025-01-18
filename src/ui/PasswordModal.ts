@@ -9,7 +9,7 @@ export interface PasswordPromptResult {
 export class PasswordModal extends Modal {
     private password: string = '';
     private hint: string = '';
-    private remember: boolean = false;
+    private remember: boolean = true;
     private isEncrypting: boolean;
     private resolve: (value: PasswordPromptResult | null) => void;
 
@@ -34,15 +34,36 @@ export class PasswordModal extends Modal {
         contentEl.empty();
         contentEl.createEl('h2', { text: this.isEncrypting ? 'Encrypt Content' : 'Decrypt Content' });
 
+        const submitHandler = () => {
+            if (!this.password) {
+                // Show error
+                return;
+            }
+            this.resolve({
+                password: this.password,
+                hint: this.hint || undefined,
+                remember: this.remember
+            });
+            this.close();
+        };
+
         new Setting(contentEl)
             .setName('Password')
             .setDesc('Enter your password')
-            .addText(text => text
-                .setPlaceholder('Enter password')
-                .setValue(this.password)
-                .onChange(value => this.password = value)
-                .inputEl.type = 'password'
-            );
+            .addText(text => {
+                text
+                    .setPlaceholder('Enter password')
+                    .setValue(this.password)
+                    .onChange(value => this.password = value);
+                text.inputEl.type = 'password';
+                text.inputEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitHandler();
+                    }
+                });
+                return text;
+            });
 
         if (this.isEncrypting) {
             new Setting(contentEl)
@@ -72,12 +93,7 @@ export class PasswordModal extends Modal {
                         // Show error
                         return;
                     }
-                    this.resolve({
-                        password: this.password,
-                        hint: this.hint || undefined,
-                        remember: this.remember
-                    });
-                    this.close();
+                    submitHandler();
                 }))
             .addButton(btn => btn
                 .setButtonText('Cancel')
