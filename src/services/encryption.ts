@@ -15,12 +15,13 @@ export class EncryptionService {
     private sessionPasswords: Map<string, string> = new Map();
 
     private arrayBufferToBase64(buffer: Uint8Array): string {
-        const binary = String.fromCharCode(...buffer);
-        return btoa(binary);
+        const base64 = btoa(String.fromCharCode(...buffer));
+        return base64.replace(/(.{64})/g, '$1\n');
     }
 
     private base64ToArrayBuffer(base64: string): Uint8Array {
-        const binary = atob(base64);
+        const cleanBase64 = base64.replace(/\n/g, '');
+        const binary = atob(cleanBase64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) {
             bytes[i] = binary.charCodeAt(i);
@@ -70,31 +71,32 @@ export class EncryptionService {
     }
 
     formatEncryptedBlock(encryptedContent: string, hint?: string): string {
-        console.log('Formatting block with content:', encryptedContent); // Debug log
+        console.log('Formatting block with content:', encryptedContent);
         
         const block = [
             '```age',
             hint ? `hint: ${hint}` : '',
+            '-----BEGIN AGE ENCRYPTED FILE-----',
             encryptedContent,
+            '-----END AGE ENCRYPTED FILE-----',
             '```'
         ]
             .filter(line => line)
             .join('\n');
         
-        console.log('Formatted block:', block); // Debug log
+        console.log('Formatted block:', block);
         return block;
     }
 
     parseEncryptedBlock(block: string): EncryptedBlock {
-        console.log('Parsing block:', block); // Debug log
+        console.log('Parsing block:', block);
         
-        // Split by lines and remove empty lines and the age code block markers
         const lines = block
             .split('\n')
             .map(line => line.trim())
             .filter(line => line && !line.startsWith('```'));
         
-        console.log('Filtered lines:', lines); // Debug log
+        console.log('Filtered lines:', lines);
 
         if (lines.length === 0) {
             throw new Error('Invalid encrypted block format: empty content');
@@ -108,10 +110,16 @@ export class EncryptionService {
             contentStartIndex = 1;
         }
 
-        // Join all remaining lines as the content
-        const content = lines.slice(contentStartIndex).join('\n');
+        const beginIndex = lines.findIndex(line => line === '-----BEGIN AGE ENCRYPTED FILE-----');
+        const endIndex = lines.findIndex(line => line === '-----END AGE ENCRYPTED FILE-----');
+
+        if (beginIndex === -1 || endIndex === -1 || beginIndex >= endIndex) {
+            throw new Error('Invalid encrypted block format: missing age markers');
+        }
+
+        const content = lines.slice(beginIndex + 1, endIndex).join('\n');
         
-        console.log('Parsed result:', { content, hint }); // Debug log
+        console.log('Parsed result:', { content, hint });
         
         if (!content) {
             throw new Error('Invalid encrypted block format: no content found');
