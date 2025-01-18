@@ -74,13 +74,29 @@ export default class AgeEncryptPlugin extends Plugin {
 							cls: 'age-encrypt-textarea'
 						});
 						
-						// Create save button
-						const saveButton = el.createEl('button', {
-							text: 'Save Changes',
+						// Create button container
+						const buttonContainer = el.createDiv({
+							cls: 'age-encrypt-button-container'
+						});
+
+						// Create save encrypted button
+						const saveEncryptedButton = buttonContainer.createEl('button', {
+							text: 'Save Encrypted',
 							cls: 'age-encrypt-button'
 						});
 
-						saveButton.onclick = async () => {
+						// Create save as plain text button
+						const savePlainTextButton = buttonContainer.createEl('button', {
+							text: 'Save as Plain Text',
+							cls: 'age-encrypt-button age-encrypt-button-secondary'
+						});
+
+						// Get file and position information
+						const file = this.app.workspace.getActiveFile();
+						const startLine = ctx.getSectionInfo(el)?.lineStart || 0;
+						const endLine = ctx.getSectionInfo(el)?.lineEnd || 0;
+
+						saveEncryptedButton.onclick = async () => {
 							try {
 								const editedContent = textarea.value;
 								const encrypted = await this.encryptionService.encrypt(editedContent, {
@@ -93,21 +109,20 @@ export default class AgeEncryptPlugin extends Plugin {
 									hint
 								);
 								
-								// Replace the entire code block content in the editor
-								const file = this.app.workspace.getActiveFile();
-								if (!file) return;
-								
-								const fileContent = await this.app.vault.read(file);
-								const lines = fileContent.split('\n');
-								const startLine = ctx.getSectionInfo(el)?.lineStart || 0;
-								const endLine = ctx.getSectionInfo(el)?.lineEnd || 0;
-								
-								lines.splice(startLine, endLine - startLine + 1, formattedBlock);
-								await this.app.vault.modify(file, lines.join('\n'));
-								
+								await this.updateFileContent(file, startLine, endLine, formattedBlock);
 								new Notice('Content re-encrypted successfully');
 							} catch (error) {
 								new Notice('Failed to re-encrypt content');
+							}
+						};
+
+						savePlainTextButton.onclick = async () => {
+							try {
+								const editedContent = textarea.value;
+								await this.updateFileContent(file, startLine, endLine, editedContent);
+								new Notice('Saved as plain text');
+							} catch (error) {
+								new Notice('Failed to save as plain text');
 							}
 						};
 					} catch (error) {
@@ -205,5 +220,20 @@ export default class AgeEncryptPlugin extends Plugin {
 		this.encryptionService.clearStoredPasswords();
 		console.log('Session passwords cleared');
 		console.log('Age Encrypt plugin unloaded');
+	}
+
+	// Helper method to update file content
+	private async updateFileContent(
+		file: TFile | null,
+		startLine: number,
+		endLine: number,
+		newContent: string
+	): Promise<void> {
+		if (!file) return;
+		
+		const fileContent = await this.app.vault.read(file);
+		const lines = fileContent.split('\n');
+		lines.splice(startLine, endLine - startLine + 1, newContent);
+		await this.app.vault.modify(file, lines.join('\n'));
 	}
 }

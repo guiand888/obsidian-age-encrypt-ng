@@ -45,3 +45,17 @@ If your plugin does not need CSS, delete this file.
     outline: none;
     border-color: var(--interactive-accent);
 }
+
+.age-encrypt-button-container {
+    display: flex;
+    gap: 8px;
+    margin: 8px 0;
+}
+
+.age-encrypt-button-secondary {
+    background-color: var(--background-modifier-border);
+}
+
+.age-encrypt-button-secondary:hover {
+    background-color: var(--background-modifier-border-hover);
+}
