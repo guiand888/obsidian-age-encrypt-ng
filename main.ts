@@ -38,16 +38,42 @@ export default class AgeEncryptPlugin extends Plugin {
 				const { content, hint } = this.encryptionService.parseEncryptedBlock(source);
 				console.log('Parsed encrypted block', { hasHint: !!hint });
 				const decryptButton = el.createEl('button', {
-					cls: 'age-encrypt-button',
-					text: 'Decrypt Content'
+					cls: 'age-encrypt-decrypt-button',
+					attr: { 'aria-label': 'Decrypt encrypted content' }
+				});
+
+				// Create content container inside button
+				const contentContainer = decryptButton.createDiv({
+					cls: 'age-encrypt-decrypt-content'
+				});
+
+				// Add main text
+				contentContainer.createDiv({
+					cls: 'age-encrypt-decrypt-title',
+					text: 'Encrypted Content'
+				});
+
+				// Add info text
+				const infoContainer = contentContainer.createDiv({
+					cls: 'age-encrypt-decrypt-info'
+				});
+
+				infoContainer.createSpan({
+					text: 'Click to decrypt'
 				});
 
 				if (hint) {
-					decryptButton.createSpan({
+					infoContainer.createSpan({
 						cls: 'age-encrypt-hint',
-						text: `(Hint: ${hint})`
+						text: `• Hint: ${hint}`
 					});
 				}
+
+				// Add encryption type info
+				infoContainer.createSpan({
+					cls: 'age-encrypt-type',
+					text: '• Encrypted with Age'
+				});
 
 				decryptButton.onclick = async () => {
 					let password: string | undefined;

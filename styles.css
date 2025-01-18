@@ -7,6 +7,73 @@ If your plugin does not need CSS, delete this file.
 
 */
 
+.age-encrypt-decrypt-button {
+    width: 100%;
+    min-height: 80px;
+    padding: 16px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 8px 0;
+}
+
+.age-encrypt-decrypt-button:hover {
+    background-color: var(--background-secondary-alt);
+    border-color: var(--interactive-accent);
+}
+
+.age-encrypt-decrypt-button::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--background-secondary));
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.age-encrypt-decrypt-button:hover::after {
+    background: linear-gradient(transparent, var(--background-secondary-alt));
+}
+
+.age-encrypt-decrypt-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+.age-encrypt-decrypt-title {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.age-encrypt-decrypt-info {
+    color: var(--text-muted);
+    font-size: 0.9em;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.age-encrypt-hint {
+    color: var(--text-muted);
+}
+
+.age-encrypt-type {
+    color: var(--text-muted);
+}
+
 .age-encrypt-button {
     display: inline-flex;
     align-items: center;
