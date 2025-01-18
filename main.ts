@@ -94,11 +94,20 @@ export default class AgeEncryptPlugin extends Plugin {
 						const decrypted = await this.encryptionService.decrypt(content, password!);
 						el.empty();
 						
-						// Create editable textarea
+						// Calculate number of lines in decrypted text
+						const lineCount = decrypted.split('\n').length;
+						const height = lineCount * 22 + 16;
+						
+						// Create editable textarea with dynamic height
 						const textarea = el.createEl('textarea', {
 							text: decrypted,
 							cls: 'age-encrypt-textarea'
 						});
+						
+						// Set initial height and font size
+						textarea.style.height = `${height}px`;
+						textarea.style.fontSize = '16px';
+						textarea.style.overflowY = 'auto';
 						
 						// Create button container
 						const buttonContainer = el.createDiv({
