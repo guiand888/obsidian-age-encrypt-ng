@@ -27,3 +27,21 @@ If your plugin does not need CSS, delete this file.
     color: var(--text-muted);
     margin-left: 8px;
 }
+
+.age-encrypt-textarea {
+    width: 100%;
+    min-height: 100px;
+    margin: 8px 0;
+    padding: 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-family: var(--font-text);
+    resize: vertical;
+}
+
+.age-encrypt-textarea:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}

@@ -51,20 +51,65 @@ export default class AgeEncryptPlugin extends Plugin {
 
 				decryptButton.onclick = async () => {
 					let password: string | undefined;
+					let rememberPassword = false;
 					
 					if (this.encryptionService.hasStoredPassword(content)) {
 						password = this.encryptionService.getStoredPassword(content);
+						rememberPassword = true;
 					} else {
 						const result = await new PasswordModal(this.app, false, hint)
 							.openAndGetPassword();
 						if (!result) return;
 						password = result.password;
+						rememberPassword = result.remember || false;
 					}
 
 					try {
 						const decrypted = await this.encryptionService.decrypt(content, password!);
 						el.empty();
-						el.createDiv({ text: decrypted });
+						
+						// Create editable textarea
+						const textarea = el.createEl('textarea', {
+							text: decrypted,
+							cls: 'age-encrypt-textarea'
+						});
+						
+						// Create save button
+						const saveButton = el.createEl('button', {
+							text: 'Save Changes',
+							cls: 'age-encrypt-button'
+						});
+
+						saveButton.onclick = async () => {
+							try {
+								const editedContent = textarea.value;
+								const encrypted = await this.encryptionService.encrypt(editedContent, {
+									password: password!,
+									hint: hint,
+									remember: rememberPassword
+								});
+								const formattedBlock = this.encryptionService.formatEncryptedBlock(
+									encrypted,
+									hint
+								);
+								
+								// Replace the entire code block content in the editor
+								const file = this.app.workspace.getActiveFile();
+								if (!file) return;
+								
+								const fileContent = await this.app.vault.read(file);
+								const lines = fileContent.split('\n');
+								const startLine = ctx.getSectionInfo(el)?.lineStart || 0;
+								const endLine = ctx.getSectionInfo(el)?.lineEnd || 0;
+								
+								lines.splice(startLine, endLine - startLine + 1, formattedBlock);
+								await this.app.vault.modify(file, lines.join('\n'));
+								
+								new Notice('Content re-encrypted successfully');
+							} catch (error) {
+								new Notice('Failed to re-encrypt content');
+							}
+						};
 					} catch (error) {
 						new Notice('Failed to decrypt content');
 					}
