@@ -19,13 +19,8 @@ export default class AgeEncryptPlugin extends Plugin {
 	private encryptionService: EncryptionService;
 
 	async onload(): Promise<void> {
-		console.log('Loading Age Encrypt plugin...');
-		
 		await this.loadSettings();
-		console.log('Settings loaded');
-
 		this.encryptionService = new EncryptionService();
-		console.log('Encryption service initialized');
 
 		// Register the markdown processor for encrypted blocks
 		this.registerMarkdownCodeBlockProcessor('age', async (
@@ -33,10 +28,8 @@ export default class AgeEncryptPlugin extends Plugin {
 			el: HTMLElementType,
 			ctx: MarkdownPostProcessorContext
 		) => {
-			console.log('Processing age codeblock');
 			try {
 				const { content, hint } = this.encryptionService.parseEncryptedBlock(source);
-				console.log('Parsed encrypted block', { hasHint: !!hint });
 				const decryptButton = el.createEl('button', {
 					cls: 'age-encrypt-decrypt-button',
 					attr: { 'aria-label': 'Decrypt encrypted content' }
@@ -175,7 +168,6 @@ export default class AgeEncryptPlugin extends Plugin {
 			id: 'encrypt-selection',
 			name: 'Encrypt Selection',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				console.log('Encrypting selection...');
 				const selection = editor.getSelection();
 				if (!selection) {
 					new Notice('No text selected');
@@ -238,8 +230,6 @@ export default class AgeEncryptPlugin extends Plugin {
 				}
 			}
 		});
-
-		console.log('Age Encrypt plugin loaded successfully');
 	}
 
 	async loadSettings(): Promise<void> {
@@ -251,10 +241,7 @@ export default class AgeEncryptPlugin extends Plugin {
 	}
 
 	onunload(): void {
-		console.log('Unloading Age Encrypt plugin...');
 		this.encryptionService.clearStoredPasswords();
-		console.log('Session passwords cleared');
-		console.log('Age Encrypt plugin unloaded');
 	}
 
 	// Helper method to update file content

@@ -30,20 +30,14 @@ export class EncryptionService {
     }
 
     async encrypt(content: string, options: EncryptionOptions): Promise<string> {
-        console.log('Starting encryption...');
-        console.log('Content to encrypt:', content);
         try {
             const encrypter = new Encrypter();
             encrypter.setPassphrase(options.password);
-            console.log('Encrypting content...');
             const encryptedArray = await encrypter.encrypt(content);
             const encryptedBase64 = this.arrayBufferToBase64(encryptedArray);
-            console.log('Content encrypted successfully');
-            console.log('Encrypted content (base64):', encryptedBase64);
             
             if (options.remember) {
                 this.sessionPasswords.set(encryptedBase64, options.password);
-                console.log('Password stored in session');
             }
             return encryptedBase64;
         } catch (error: unknown) {
@@ -53,16 +47,11 @@ export class EncryptionService {
     }
 
     async decrypt(encryptedContent: string, password: string): Promise<string> {
-        console.log('Starting decryption...');
-        console.log('Content to decrypt (base64):', encryptedContent);
         try {
             const decrypter = new Decrypter();
             decrypter.addPassphrase(password);
             const encryptedArray = this.base64ToArrayBuffer(encryptedContent);
-            console.log('Decrypting content...');
             const result = await decrypter.decrypt(encryptedArray, "text");
-            console.log('Content decrypted successfully');
-            console.log('Decrypted content:', result);
             return result;
         } catch (error: unknown) {
             console.error('Decryption failed:', error);
@@ -71,8 +60,6 @@ export class EncryptionService {
     }
 
     formatEncryptedBlock(encryptedContent: string, hint?: string): string {
-        console.log('Formatting block with content:', encryptedContent);
-        
         const block = [
             '```age',
             hint ? `hint: ${hint}` : '',
@@ -84,19 +71,14 @@ export class EncryptionService {
             .filter(line => line)
             .join('\n');
         
-        console.log('Formatted block:', block);
         return block;
     }
 
     parseEncryptedBlock(block: string): EncryptedBlock {
-        console.log('Parsing block:', block);
-        
         const lines = block
             .split('\n')
             .map(line => line.trim())
             .filter(line => line && !line.startsWith('```'));
-        
-        console.log('Filtered lines:', lines);
 
         if (lines.length === 0) {
             throw new Error('Invalid encrypted block format: empty content');
@@ -118,8 +100,6 @@ export class EncryptionService {
         }
 
         const content = lines.slice(beginIndex + 1, endIndex).join('\n');
-        
-        console.log('Parsed result:', { content, hint });
         
         if (!content) {
             throw new Error('Invalid encrypted block format: no content found');
