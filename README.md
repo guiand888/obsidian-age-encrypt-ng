@@ -2,8 +2,8 @@
 
 A plugin for Obsidian that provides age-based encryption for your notes.
 
-⚠️ **IMPORTANT SECURITY WARNINGS**
-- This plugin comes with NO WARRANTY and NO RESPONSIBILITY for any data loss or security breaches, use at your own risk
+> [!CAUTION]
+> **This plugin comes with NO WARRANTY and NO RESPONSIBILITY for any data loss or security breaches, use at your own risk**
 
 ## Features
 - Encrypt whole file or selected text using age encryption
