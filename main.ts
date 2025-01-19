@@ -99,8 +99,6 @@ export default class AgeEncryptPlugin extends Plugin {
 						
 						// Set initial height and font size
 						textarea.style.height = `${height}px`;
-						textarea.style.fontSize = '16px';
-						textarea.style.overflowY = 'auto';
 						
 						// Create button container
 						const buttonContainer = el.createDiv({
