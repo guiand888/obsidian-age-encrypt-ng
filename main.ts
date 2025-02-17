@@ -250,10 +250,11 @@ export default class AgeEncryptPlugin extends Plugin {
 		newContent: string
 	): Promise<void> {
 		if (!file) return;
-		
-		const fileContent = await this.app.vault.read(file);
-		const lines = fileContent.split('\n');
-		lines.splice(startLine, endLine - startLine + 1, newContent);
-		await this.app.vault.modify(file, lines.join('\n'));
+
+		const fileContent = await this.app.vault.process(file, (data) => {
+			const lines = data.split('\n');
+			lines.splice(startLine, endLine - startLine + 1, newContent);
+			return lines.join('\n');
+		});
 	}
 }
