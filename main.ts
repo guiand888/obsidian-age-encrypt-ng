@@ -43,7 +43,7 @@ export default class AgeEncryptPlugin extends Plugin {
 				// Add main text
 				contentContainer.createDiv({
 					cls: 'age-encrypt-decrypt-title',
-					text: 'Encrypted Content'
+					text: 'Encrypted content'
 				});
 
 				// Add info text
@@ -65,7 +65,7 @@ export default class AgeEncryptPlugin extends Plugin {
 				// Add encryption type info
 				infoContainer.createSpan({
 					cls: 'age-encrypt-type',
-					text: '• Encrypted with Age'
+					text: '• Encrypted with age'
 				});
 
 				decryptButton.onclick = async () => {
@@ -107,13 +107,13 @@ export default class AgeEncryptPlugin extends Plugin {
 
 						// Create save encrypted button
 						const saveEncryptedButton = buttonContainer.createEl('button', {
-							text: 'Save Encrypted',
+							text: 'Save encrypted',
 							cls: 'age-encrypt-button'
 						});
 
 						// Create save as plain text button
 						const savePlainTextButton = buttonContainer.createEl('button', {
-							text: 'Save as Plain Text',
+							text: 'Save as plain text',
 							cls: 'age-encrypt-button age-encrypt-button-secondary'
 						});
 
@@ -164,7 +164,7 @@ export default class AgeEncryptPlugin extends Plugin {
 		// Add command to encrypt selection
 		this.addCommand({
 			id: 'encrypt-selection',
-			name: 'Encrypt Selection',
+			name: 'Encrypt selection',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				const selection = editor.getSelection();
 				if (!selection) {
@@ -197,7 +197,7 @@ export default class AgeEncryptPlugin extends Plugin {
 		// Add command to encrypt entire file
 		this.addCommand({
 			id: 'encrypt-file',
-			name: 'Encrypt File',
+			name: 'Encrypt file',
 			callback: async () => {
 				const activeFile = this.app.workspace.getActiveFile();
 				if (!activeFile) {

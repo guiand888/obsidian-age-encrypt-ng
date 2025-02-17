@@ -32,7 +32,7 @@ export class PasswordModal extends Modal {
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', { text: this.isEncrypting ? 'Encrypt Content' : 'Decrypt Content' });
+        contentEl.createEl('h2', { text: this.isEncrypting ? 'Encrypt content' : 'Decrypt content' });
 
         const submitHandler = () => {
             if (!this.password) {
