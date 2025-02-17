@@ -1,4 +1,4 @@
-# Obsidian Age Encryption Plugin
+# Age Encryption Plugin
 
 A plugin for Obsidian that provides [age-based](https://github.com/FiloSottile/age) encryption for your notes.
 
