@@ -5,6 +5,8 @@ A plugin for Obsidian that provides [age-based](https://github.com/FiloSottile/a
 > [!CAUTION]
 > **This plugin comes with NO WARRANTY and NO RESPONSIBILITY for any data loss or security breaches, use at your own risk**
 
+![](./docs/showcase.gif)
+
 ## Features
 - Encrypt whole file or selected text using age encryption
 - View and edit decrypted content in memory without writing to disk
