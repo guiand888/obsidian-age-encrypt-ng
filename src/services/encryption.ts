@@ -16,7 +16,8 @@ export class EncryptionService {
 
     private arrayBufferToBase64(buffer: Uint8Array): string {
         const base64 = btoa(String.fromCharCode(...buffer));
-        return base64.replace(/(.{64})/g, '$1\n');
+        // Remove any trailing newlines after line wrapping
+        return base64.replace(/(.{64})/g, '$1\n').trim();
     }
 
     private base64ToArrayBuffer(base64: string): Uint8Array {
@@ -35,7 +36,7 @@ export class EncryptionService {
             encrypter.setPassphrase(options.password);
             const encryptedArray = await encrypter.encrypt(content);
             const encryptedBase64 = this.arrayBufferToBase64(encryptedArray);
-            
+
             if (options.remember) {
                 this.sessionPasswords.set(encryptedBase64, options.password);
             }
@@ -70,7 +71,7 @@ export class EncryptionService {
         ]
             .filter(line => line)
             .join('\n');
-        
+
         return block;
     }
 
@@ -100,7 +101,7 @@ export class EncryptionService {
         }
 
         const content = lines.slice(beginIndex + 1, endIndex).join('\n');
-        
+
         if (!content) {
             throw new Error('Invalid encrypted block format: no content found');
         }
@@ -119,4 +120,4 @@ export class EncryptionService {
     clearStoredPasswords(): void {
         this.sessionPasswords.clear();
     }
-} 
+}
