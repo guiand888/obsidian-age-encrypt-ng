@@ -12,14 +12,16 @@ type HTMLElementType = HTMLElement;
 
 import { EncryptionService } from './src/services/encryption';
 import { AgeEncryptSettings, DEFAULT_SETTINGS } from './src/settings';
+import { AgeEncryptSettingTab } from './src/ui/SettingsTab';
 import { PasswordModal } from './src/ui/PasswordModal';
 
 export default class AgeEncryptPlugin extends Plugin {
-	private settings: AgeEncryptSettings;
+	settings: AgeEncryptSettings;
 	private encryptionService: EncryptionService;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
+		this.addSettingTab(new AgeEncryptSettingTab(this.app, this));
 		this.encryptionService = new EncryptionService();
 
 		// Register the markdown processor for encrypted blocks
@@ -71,7 +73,7 @@ export default class AgeEncryptPlugin extends Plugin {
 				decryptButton.onclick = async () => {
 					let password: string | undefined;
 					let rememberPassword = false;
-					
+
 					if (this.encryptionService.hasStoredPassword(content)) {
 						password = this.encryptionService.getStoredPassword(content);
 						rememberPassword = true;
@@ -86,20 +88,20 @@ export default class AgeEncryptPlugin extends Plugin {
 					try {
 						const decrypted = await this.encryptionService.decrypt(content, password!);
 						el.empty();
-						
+
 						// Calculate number of lines in decrypted text
 						const lineCount = decrypted.split('\n').length;
 						const height = lineCount * 22 + 16;
-						
+
 						// Create editable textarea with dynamic height
 						const textarea = el.createEl('textarea', {
 							text: decrypted,
 							cls: 'age-encrypt-textarea'
 						});
-						
+
 						// Set initial height and font size
 						textarea.style.height = `${height}px`;
-						
+
 						// Create button container
 						const buttonContainer = el.createDiv({
 							cls: 'age-encrypt-button-container'
@@ -134,7 +136,7 @@ export default class AgeEncryptPlugin extends Plugin {
 									encrypted,
 									hint
 								);
-								
+
 								await this.updateFileContent(file, startLine, endLine, formattedBlock);
 								new Notice('Content re-encrypted successfully');
 							} catch (error) {
@@ -174,7 +176,7 @@ export default class AgeEncryptPlugin extends Plugin {
 
 				const modal = new PasswordModal(this.app, true);
 				const result = await modal.openAndGetPassword();
-				
+
 				if (!result) return;
 
 				try {
@@ -183,10 +185,18 @@ export default class AgeEncryptPlugin extends Plugin {
 						hint: result.hint,
 						remember: result.remember
 					});
-					const formattedBlock = this.encryptionService.formatEncryptedBlock(
+					let formattedBlock = this.encryptionService.formatEncryptedBlock(
 						encrypted,
 						result.hint
 					);
+
+					const endOfSelection = editor.posToOffset(editor.getCursor('to'));
+					const endOfFile = editor.getValue().length;
+
+					if (endOfSelection === endOfFile) {
+						formattedBlock += '\n';
+					}
+
 					editor.replaceSelection(formattedBlock);
 				} catch (error) {
 					new Notice('Failed to encrypt content');
@@ -205,23 +215,44 @@ export default class AgeEncryptPlugin extends Plugin {
 					return;
 				}
 
-				const content = await this.app.vault.read(activeFile);
+				const fileContent = await this.app.vault.read(activeFile);
 				const modal = new PasswordModal(this.app, true);
 				const result = await modal.openAndGetPassword();
-				
+
 				if (!result) return;
 
 				try {
-					const encrypted = await this.encryptionService.encrypt(content, {
+					let contentToEncrypt = fileContent.trimEnd();
+					let frontmatter = '';
+
+					if (this.settings.excludeFrontmatter) {
+						const frontmatterRegex = /^---\n([\s\S]*?)\n---\n/;
+						const match = fileContent.match(frontmatterRegex);
+						if (match) {
+							frontmatter = match[0];
+							contentToEncrypt = fileContent.substring(frontmatter.length).trimEnd();
+						}
+					}
+
+					const encrypted = await this.encryptionService.encrypt(contentToEncrypt, {
 						password: result.password,
 						hint: result.hint,
 						remember: result.remember
 					});
+
 					const formattedBlock = this.encryptionService.formatEncryptedBlock(
 						encrypted,
 						result.hint
 					);
-					await this.app.vault.modify(activeFile, formattedBlock);
+
+					let finalContent = frontmatter + formattedBlock;
+					// Add a newline only if the original content (that was encrypted) is not empty
+					// and does not already end with a newline.
+					if (contentToEncrypt.length > 0 && !contentToEncrypt.endsWith('\n')) {
+						finalContent += '\n';
+					}
+
+					await this.app.vault.modify(activeFile, finalContent);
 					new Notice('File encrypted successfully');
 				} catch (error) {
 					new Notice('Failed to encrypt file');

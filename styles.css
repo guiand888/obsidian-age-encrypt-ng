@@ -9,14 +9,14 @@ If your plugin does not need CSS, delete this file.
 
 .age-encrypt-decrypt-button {
     width: 100%;
-    min-height: 80px;
-    padding: 16px;
+    min-height: 88px;
+    padding: 12px;
     background-color: var(--background-secondary);
     border: 1px solid var(--background-modifier-border);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
-    margin: 8px 0;
+    margin: 0px 0;
     position: relative;
     text-align: center;
 }
