@@ -20,9 +20,11 @@ export default class AgeEncryptPlugin extends Plugin {
 	private encryptionService: EncryptionService;
 
 	async onload(): Promise<void> {
-		await this.loadSettings();
-		this.addSettingTab(new AgeEncryptSettingTab(this.app, this));
-		this.encryptionService = new EncryptionService();
+	await this.loadSettings();
+	this.addSettingTab(new AgeEncryptSettingTab(this.app, this));
+	this.encryptionService = new EncryptionService();
+	// Initialize encryption service with app instance for key file support
+	this.encryptionService.init(this.app);
 
 		// Register the markdown processor for encrypted blocks
 		this.registerMarkdownCodeBlockProcessor('age', async (
@@ -270,7 +272,7 @@ export default class AgeEncryptPlugin extends Plugin {
 	}
 
 	onunload(): void {
-		this.encryptionService.clearStoredPasswords();
+		this.encryptionService.clearAllCaches();
 	}
 
 	// Helper method to update file content

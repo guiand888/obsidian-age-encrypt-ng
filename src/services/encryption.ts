@@ -1,9 +1,20 @@
-import { Encrypter, Decrypter } from "age-encryption";
+import { Encrypter, Decrypter, identityToRecipient } from "age-encryption";
+import { KeyFileService, DecryptedIdentity } from './keyFileService';
+import { EncryptionOptions } from '../settings';
+import { App } from 'obsidian';
 
-export interface EncryptionOptions {
+// Legacy options interface for backward compatibility
+export interface LegacyEncryptionOptions {
     password: string;
     hint?: string;
     remember?: boolean;
+}
+
+// Enhanced options that support both modes
+export interface EnhancedEncryptionOptions extends EncryptionOptions {
+    // Inherited from settings: password?, hint?, remember?, useKeyFiles?
+    keyFilePaths?: string[];    // Override key files for this operation
+    recipients?: string[];      // Override recipients for this operation
 }
 
 export interface EncryptedBlock {
@@ -13,6 +24,7 @@ export interface EncryptedBlock {
 
 export class EncryptionService {
     private sessionPasswords: Map<string, string> = new Map();
+    private keyFileService?: KeyFileService;
 
     private arrayBufferToBase64(buffer: Uint8Array): string {
         const base64 = btoa(String.fromCharCode(...buffer));
@@ -30,10 +42,41 @@ export class EncryptionService {
         return bytes;
     }
 
-    async encrypt(content: string, options: EncryptionOptions): Promise<string> {
+// Initialize with Obsidian App when available
+init(app: App): void {
+    this.keyFileService = new KeyFileService(app);
+}
+
+async encrypt(content: string, options: LegacyEncryptionOptions | EnhancedEncryptionOptions): Promise<string> {
         try {
             const encrypter = new Encrypter();
-            encrypter.setPassphrase(options.password);
+
+            // Determine encryption mode
+            const enhanced = options as EnhancedEncryptionOptions;
+            const useKeyFiles = enhanced.useKeyFiles || false;
+            const hasRecipients = Array.isArray(enhanced.recipients) && enhanced.recipients.length > 0;
+
+            if (useKeyFiles || hasRecipients) {
+                // Add recipients from provided list
+                if (hasRecipients) {
+                    for (const r of enhanced.recipients!) {
+                        encrypter.addRecipient(r);
+                    }
+                }
+                // If we have key files cached identities, add their recipients too
+                if (this.keyFileService && enhanced.keyFilePaths && enhanced.keyFilePaths.length > 0) {
+                    for (const keyPath of enhanced.keyFilePaths) {
+                        const cached = this.keyFileService.getCachedIdentity(keyPath);
+                        if (cached?.recipient) {
+                            encrypter.addRecipient(cached.recipient);
+                        }
+                    }
+                }
+            } else {
+                // Default to passphrase mode (legacy behavior)
+                encrypter.setPassphrase((options as LegacyEncryptionOptions).password);
+            }
+
             const encryptedArray = await encrypter.encrypt(content);
             const encryptedBase64 = this.arrayBufferToBase64(encryptedArray);
 
@@ -47,10 +90,50 @@ export class EncryptionService {
         }
     }
 
+    // Legacy decrypt method for backward compatibility
     async decrypt(encryptedContent: string, password: string): Promise<string> {
+        return this.decryptWithOptions(encryptedContent, { password });
+    }
+
+    // Enhanced decrypt method that supports multiple decryption methods
+    async decryptWithOptions(encryptedContent: string, options: {
+        password?: string;
+        keyFilePaths?: string[];
+        identities?: string[];
+    }): Promise<string> {
         try {
             const decrypter = new Decrypter();
-            decrypter.addPassphrase(password);
+            let hasDecryptionMethod = false;
+
+            // Try cached identities first (fastest)
+            if (this.keyFileService && options.keyFilePaths) {
+                for (const keyPath of options.keyFilePaths) {
+                    const cached = this.keyFileService.getCachedIdentity(keyPath);
+                    if (cached?.identity) {
+                        decrypter.addIdentity(cached.identity);
+                        hasDecryptionMethod = true;
+                    }
+                }
+            }
+
+            // Add provided identities
+            if (options.identities) {
+                for (const identity of options.identities) {
+                    decrypter.addIdentity(identity);
+                    hasDecryptionMethod = true;
+                }
+            }
+
+            // Add passphrase as fallback
+            if (options.password) {
+                decrypter.addPassphrase(options.password);
+                hasDecryptionMethod = true;
+            }
+
+            if (!hasDecryptionMethod) {
+                throw new Error('No decryption method provided (password, identities, or cached key files)');
+            }
+
             const encryptedArray = this.base64ToArrayBuffer(encryptedContent);
             const result = await decrypter.decrypt(encryptedArray, "text");
             return result;
@@ -119,5 +202,18 @@ export class EncryptionService {
 
     clearStoredPasswords(): void {
         this.sessionPasswords.clear();
+    }
+
+    // Clear all cached data (passwords and identities)
+    clearAllCaches(): void {
+        this.sessionPasswords.clear();
+        if (this.keyFileService) {
+            this.keyFileService.clearCache();
+        }
+    }
+
+    // Get access to key file service for external use
+    getKeyFileService(): KeyFileService | undefined {
+        return this.keyFileService;
     }
 }
