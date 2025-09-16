@@ -78,22 +78,23 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
         });
 
         // Add new key file
+        let currentPathInput: TextComponent;
         new Setting(containerEl)
             .setName('Add key file')
             .setDesc('Path to an encrypted key file (.age extension recommended)')
             .addText(text => {
-                let pathInput: TextComponent;
-                pathInput = text
-                    .setPlaceholder('/path/to/keyfile.age')
+                currentPathInput = text
+                    .setPlaceholder('~/path/to/keyfile.age or /absolute/path/keyfile.age')
                     .onChange(() => {});
-                return pathInput;
+                return currentPathInput;
             })
             .addButton(btn => btn
                 .setButtonText('Add')
                 .setCta()
-.onClick(async () => {
-                    const pathInput = containerEl.querySelector('.setting-item:last-of-type input') as HTMLInputElement;
-                    const rawPath = pathInput?.value.trim();
+                .onClick(async () => {
+                    const rawPath = currentPathInput.getValue().trim();
+                    console.log('Adding key file - Raw path:', rawPath);
+                    
                     if (!rawPath) {
                         new Notice('Please enter a key file path');
                         return;
@@ -101,6 +102,7 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
                     
                     // Expand path (handle ~ and environment variables)
                     const expandedPath = this.expandPath(rawPath);
+                    console.log('Expanded path:', expandedPath);
                     
                     if (this.plugin.settings.keyFiles.includes(expandedPath)) {
                         new Notice('Key file already exists in the list');
@@ -109,7 +111,7 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
 
                     this.plugin.settings.keyFiles.push(expandedPath);
                     await this.plugin.saveSettings();
-                    pathInput.value = '';
+                    currentPathInput.setValue('');
                     this.display();
                     
                     new Notice(`Added key file: ${expandedPath}`);
@@ -220,22 +222,32 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
 
     // Helper method to expand shell paths like ~ and environment variables
     private expandPath(path: string): string {
+        console.log('expandPath - Input:', path);
+        
         // Handle ~ expansion
         if (path.startsWith('~/')) {
             const homeDir = require('os').homedir();
-            return path.replace('~/', `${homeDir}/`);
+            const expanded = path.replace('~/', `${homeDir}/`);
+            console.log('expandPath - Tilde expansion:', expanded);
+            return expanded;
         } else if (path === '~') {
-            return require('os').homedir();
+            const homeDir = require('os').homedir();
+            console.log('expandPath - Home dir:', homeDir);
+            return homeDir;
         }
         
         // Handle environment variables like $HOME
         if (path.includes('$')) {
-            // Simple environment variable expansion
-            return path.replace(/\$([A-Z_][A-Z0-9_]*)/g, (match, varName) => {
-                return process.env[varName] || match;
+            const expanded = path.replace(/\$([A-Z_][A-Z0-9_]*)/g, (match, varName) => {
+                const value = process.env[varName] || match;
+                console.log(`expandPath - Env var ${varName}:`, value);
+                return value;
             });
+            console.log('expandPath - Env expansion:', expanded);
+            return expanded;
         }
         
+        console.log('expandPath - No expansion needed:', path);
         return path;
     }
 

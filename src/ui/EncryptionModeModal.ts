@@ -45,11 +45,11 @@ export class EncryptionModeModal extends Modal {
 
         // Mode selection
         new Setting(contentEl)
-            .setName('Encryption method')
+            .setName('Method')
             .setDesc('Choose between using key files or a passphrase')
             .addDropdown(dropdown => dropdown
-                .addOption('passphrase', 'Passphrase - Use a password for encryption/decryption')
-                .addOption('keyfiles', 'Key files - Use configured age key files')
+                .addOption('passphrase', 'Passphrase')
+                .addOption('keyfiles', 'Key Files')
                 .setValue(this.selectedMode)
                 .onChange((value: EncryptionMode) => {
                     this.selectedMode = value;
