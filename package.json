@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-age-encrypt-ng",
-	"version": "2.0.2",
+	"version": "2.0.3",
 	"description": "Advanced age encryption with key file support and enhanced workflow for Obsidian",
 	"main": "main.js",
 	"scripts": {
