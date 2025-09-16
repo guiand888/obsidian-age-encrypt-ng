@@ -91,23 +91,28 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
             .addButton(btn => btn
                 .setButtonText('Add')
                 .setCta()
-                .onClick(async () => {
+.onClick(async () => {
                     const pathInput = containerEl.querySelector('.setting-item:last-of-type input') as HTMLInputElement;
-                    const filePath = pathInput?.value.trim();
-                    if (!filePath) {
+                    const rawPath = pathInput?.value.trim();
+                    if (!rawPath) {
                         new Notice('Please enter a key file path');
                         return;
                     }
                     
-                    if (this.plugin.settings.keyFiles.includes(filePath)) {
+                    // Expand path (handle ~ and environment variables)
+                    const expandedPath = this.expandPath(rawPath);
+                    
+                    if (this.plugin.settings.keyFiles.includes(expandedPath)) {
                         new Notice('Key file already exists in the list');
                         return;
                     }
 
-                    this.plugin.settings.keyFiles.push(filePath);
+                    this.plugin.settings.keyFiles.push(expandedPath);
                     await this.plugin.saveSettings();
                     pathInput.value = '';
                     this.display();
+                    
+                    new Notice(`Added key file: ${expandedPath}`);
                 }));
 
         // List existing key files
@@ -213,6 +218,27 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
         }
     }
 
+    // Helper method to expand shell paths like ~ and environment variables
+    private expandPath(path: string): string {
+        // Handle ~ expansion
+        if (path.startsWith('~/')) {
+            const homeDir = require('os').homedir();
+            return path.replace('~/', `${homeDir}/`);
+        } else if (path === '~') {
+            return require('os').homedir();
+        }
+        
+        // Handle environment variables like $HOME
+        if (path.includes('$')) {
+            // Simple environment variable expansion
+            return path.replace(/\$([A-Z_][A-Z0-9_]*)/g, (match, varName) => {
+                return process.env[varName] || match;
+            });
+        }
+        
+        return path;
+    }
+
     private async testKeyFile(filePath: string): Promise<void> {
         const keyFileService = this.plugin.encryptionService.getKeyFileService();
         if (!keyFileService) {
@@ -221,10 +247,26 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
         }
 
         try {
-            // First check if file exists
-            const exists = await this.app.vault.adapter.exists(filePath);
-            if (!exists) {
-                new Notice(`Key file not found: ${filePath}`);
+            const expandedPath = this.expandPath(filePath);
+            
+            // Check if file exists (external or vault)
+            let fileExists = false;
+            if (expandedPath.startsWith('/') || filePath.startsWith('~') || filePath.includes('$')) {
+                // Use Node.js fs for external files
+                const fs = require('fs').promises;
+                try {
+                    await fs.access(expandedPath);
+                    fileExists = true;
+                } catch {
+                    fileExists = false;
+                }
+            } else {
+                // Use vault adapter for vault files
+                fileExists = await this.app.vault.adapter.exists(filePath);
+            }
+            
+            if (!fileExists) {
+                new Notice(`Key file not found: ${expandedPath}`);
                 return;
             }
 

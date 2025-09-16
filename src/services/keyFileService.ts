@@ -18,28 +18,68 @@ export class KeyFileService {
     }
 
     /**
+     * Expand shell paths like ~ and environment variables
+     */
+    private expandPath(path: string): string {
+        // Handle ~ expansion
+        if (path.startsWith('~/')) {
+            const homeDir = require('os').homedir();
+            return path.replace('~/', `${homeDir}/`);
+        } else if (path === '~') {
+            return require('os').homedir();
+        }
+        
+        // Handle environment variables like $HOME
+        if (path.includes('$')) {
+            return path.replace(/\$([A-Z_][A-Z0-9_]*)/g, (match, varName) => {
+                return process.env[varName] || match;
+            });
+        }
+        
+        return path;
+    }
+
+    /**
+     * Check if a file path is external to the vault
+     */
+    private isExternalPath(filePath: string): boolean {
+        const expandedPath = this.expandPath(filePath);
+        return expandedPath.startsWith('/') || expandedPath.startsWith('~') || expandedPath.includes('$');
+    }
+
+    /**
      * Read a key file from disk
      */
     async readKeyFile(filePath: string): Promise<Uint8Array> {
         try {
-            // Convert relative path to absolute if needed
-            let absolutePath = filePath;
-            if (!filePath.startsWith('/')) {
-                // For Obsidian, use the vault path as base
-                const vaultPath = (this.app.vault.adapter as any).basePath || '';
-                absolutePath = vaultPath + '/' + filePath;
-            }
-
-            // In Obsidian, we'll need to use the vault adapter
-            // For now, let's use a placeholder that works with the current structure
-            if (this.app.vault.adapter.exists) {
-                const exists = await this.app.vault.adapter.exists(filePath);
-                if (!exists) {
-                    throw new Error(`Key file not found: ${filePath}`);
+            const expandedPath = this.expandPath(filePath);
+            
+            // For external files (outside vault), use Node.js fs
+            if (this.isExternalPath(filePath) || expandedPath.startsWith('/')) {
+                const fs = require('fs').promises;
+                try {
+                    await fs.access(expandedPath);
+                    const buffer = await fs.readFile(expandedPath);
+                    return new Uint8Array(buffer);
+                } catch (error) {
+                    throw new Error(`External key file not found or not accessible: ${expandedPath}`);
                 }
             }
 
-            // Read the file content
+            // For vault-relative files, use Obsidian vault adapter
+            let vaultPath = filePath;
+            if (!filePath.startsWith('/')) {
+                const basePath = (this.app.vault.adapter as any).basePath || '';
+                vaultPath = basePath ? `${basePath}/${filePath}` : filePath;
+            }
+
+            if (this.app.vault.adapter.exists) {
+                const exists = await this.app.vault.adapter.exists(filePath);
+                if (!exists) {
+                    throw new Error(`Vault key file not found: ${filePath}`);
+                }
+            }
+
             const arrayBuffer = await this.app.vault.adapter.readBinary(filePath);
             return new Uint8Array(arrayBuffer);
         } catch (error) {
@@ -110,13 +150,29 @@ export class KeyFileService {
      */
     async validateKeyFile(filePath: string, passphrase?: string): Promise<KeyFileInfo> {
         try {
-            // First check if file exists
-            const exists = await this.app.vault.adapter.exists(filePath);
-            if (!exists) {
+            const expandedPath = this.expandPath(filePath);
+            
+            // Check if file exists (external or vault)
+            let fileExists = false;
+            if (this.isExternalPath(filePath) || expandedPath.startsWith('/')) {
+                // Use Node.js fs for external files
+                const fs = require('fs').promises;
+                try {
+                    await fs.access(expandedPath);
+                    fileExists = true;
+                } catch {
+                    fileExists = false;
+                }
+            } else {
+                // Use vault adapter for vault files
+                fileExists = await this.app.vault.adapter.exists(filePath);
+            }
+            
+            if (!fileExists) {
                 return {
                     path: filePath,
                     isValid: false,
-                    error: 'File not found'
+                    error: `File not found: ${expandedPath}`
                 };
             }
 
