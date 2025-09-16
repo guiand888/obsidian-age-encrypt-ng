@@ -184,7 +184,7 @@ export class KeyFilePasswordModal extends Modal {
             }
 
             // Try to decrypt the key file
-            const identities = await keyFileService.decryptKeyFile(currentKeyFile.filePath, this.currentPassphrase);
+            const identities = await keyFileService.decryptKeyFile(currentKeyFile.filePath, this.currentPassphrase, this.rememberPassphrase);
             
             if (identities.length === 0) {
                 throw new Error('No valid identities found in key file');

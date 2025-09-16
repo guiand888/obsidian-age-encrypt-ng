@@ -101,9 +101,8 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
             .addButton(btn => btn
                 .setButtonText('Add')
                 .setCta()
-                .onClick(async () => {
+.onClick(async () => {
                     const rawPath = currentPathInput.getValue().trim();
-                    console.log('Adding key file - Raw path:', rawPath);
                     
                     if (!rawPath) {
                         new Notice('Please enter a key file path');
@@ -112,7 +111,6 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
                     
                     // Expand path (handle ~ and environment variables)
                     const expandedPath = this.expandPath(rawPath);
-                    console.log('Expanded path:', expandedPath);
                     
                     if (this.plugin.settings.keyFiles.includes(expandedPath)) {
                         new Notice('Key file already exists in the list');
@@ -232,32 +230,21 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
 
     // Helper method to expand shell paths like ~ and environment variables
     private expandPath(path: string): string {
-        console.log('expandPath - Input:', path);
-        
         // Handle ~ expansion
         if (path.startsWith('~/')) {
             const homeDir = require('os').homedir();
-            const expanded = path.replace('~/', `${homeDir}/`);
-            console.log('expandPath - Tilde expansion:', expanded);
-            return expanded;
+            return path.replace('~/', `${homeDir}/`);
         } else if (path === '~') {
-            const homeDir = require('os').homedir();
-            console.log('expandPath - Home dir:', homeDir);
-            return homeDir;
+            return require('os').homedir();
         }
         
         // Handle environment variables like $HOME
         if (path.includes('$')) {
-            const expanded = path.replace(/\$([A-Z_][A-Z0-9_]*)/g, (match, varName) => {
-                const value = process.env[varName] || match;
-                console.log(`expandPath - Env var ${varName}:`, value);
-                return value;
+            return path.replace(/\$([A-Z_][A-Z0-9_]*)/g, (match, varName) => {
+                return process.env[varName] || match;
             });
-            console.log('expandPath - Env expansion:', expanded);
-            return expanded;
         }
         
-        console.log('expandPath - No expansion needed:', path);
         return path;
     }
 

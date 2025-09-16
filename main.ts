@@ -371,6 +371,22 @@ export default class AgeEncryptPlugin extends Plugin {
 					new Notice('No key files were successfully unlocked');
 					return null;
 				}
+
+				// Cache identities for successful unlocks where remember is true
+				const keyFileService = this.encryptionService.getKeyFileService();
+				if (keyFileService) {
+					for (const result of successful) {
+						if (result.remember && result.passphrase) {
+							try {
+								// Decrypt again to get identities for caching
+								const identities = await keyFileService.decryptKeyFile(result.filePath, result.passphrase, false);
+								await keyFileService.cacheIdentitiesForKeyFile(result.filePath, identities);
+							} catch (error) {
+								console.warn(`Failed to cache identities for ${result.filePath}:`, error);
+							}
+						}
+					}
+				}
 			}
 
 			// Use default hint if available
@@ -437,8 +453,8 @@ export default class AgeEncryptPlugin extends Plugin {
 				}
 			} else {
 				// Use key files decryption
+				const keyFileService = this.encryptionService.getKeyFileService()!;
 				const keyFilesToUnlock = this.settings.keyFiles.filter(kf => {
-					const keyFileService = this.encryptionService.getKeyFileService();
 					return !keyFileService?.getCachedIdentity(kf);
 				});
 
@@ -461,10 +477,22 @@ export default class AgeEncryptPlugin extends Plugin {
 						new Notice('No key files were successfully unlocked');
 						return;
 					}
+
+					// Cache identities for successful unlocks where remember is true
+					for (const result of successful) {
+						if (result.remember && result.passphrase) {
+							try {
+								// Decrypt again to get identities for caching
+								const identities = await keyFileService.decryptKeyFile(result.filePath, result.passphrase, false);
+								await keyFileService.cacheIdentitiesForKeyFile(result.filePath, identities);
+							} catch (error) {
+								console.warn(`Failed to cache identities for ${result.filePath}:`, error);
+							}
+						}
+					}
 				}
 
 				// Try decryption with available identities
-				const keyFileService = this.encryptionService.getKeyFileService()!;
 				const identities: string[] = [];
 				const usedKeyFiles: string[] = [];
 

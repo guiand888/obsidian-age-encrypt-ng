@@ -90,7 +90,7 @@ export class KeyFileService {
     /**
      * Decrypt a key file and extract identities
      */
-    async decryptKeyFile(filePath: string, passphrase: string): Promise<string[]> {
+    async decryptKeyFile(filePath: string, passphrase: string, cacheIdentities: boolean = true): Promise<string[]> {
         try {
             const encryptedContent = await this.readKeyFile(filePath);
             
@@ -102,15 +102,17 @@ export class KeyFileService {
             // Parse the decrypted content to extract identities
             const identities = this.parseIdentitiesFromText(decryptedContent);
             
-            // Cache the decrypted identities
-            for (const identity of identities) {
-                const recipient = await identityToRecipient(identity);
-                this.decryptedIdentities.set(filePath, {
-                    keyFilePath: filePath,
-                    identity: identity,
-                    recipient: recipient,
-                    decryptedAt: Date.now()
-                });
+            // Cache the decrypted identities only if requested
+            if (cacheIdentities) {
+                for (const identity of identities) {
+                    const recipient = await identityToRecipient(identity);
+                    this.decryptedIdentities.set(filePath, {
+                        keyFilePath: filePath,
+                        identity: identity,
+                        recipient: recipient,
+                        decryptedAt: Date.now()
+                    });
+                }
             }
             
             return identities;
@@ -185,8 +187,8 @@ export class KeyFileService {
                 };
             }
 
-            // Try to decrypt and extract identities
-            const identities = await this.decryptKeyFile(filePath, passphrase);
+            // Try to decrypt and extract identities (don't cache during validation)
+            const identities = await this.decryptKeyFile(filePath, passphrase, false);
             const recipients: string[] = [];
             
             for (const identity of identities) {
@@ -205,6 +207,21 @@ export class KeyFileService {
                 isValid: false,
                 error: error.message
             };
+        }
+    }
+
+    /**
+     * Manually cache identities for a key file (used when remember is enabled)
+     */
+    async cacheIdentitiesForKeyFile(filePath: string, identities: string[]): Promise<void> {
+        for (const identity of identities) {
+            const recipient = await identityToRecipient(identity);
+            this.decryptedIdentities.set(filePath, {
+                keyFilePath: filePath,
+                identity: identity,
+                recipient: recipient,
+                decryptedAt: Date.now()
+            });
         }
     }
 
