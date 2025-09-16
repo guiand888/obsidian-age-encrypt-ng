@@ -691,9 +691,27 @@ export default class AgeEncryptPlugin extends Plugin {
 	private isValidAgeBlock(source: string): boolean {
 		const trimmedSource = source.trim();
 		
+		// Reject if content is too short to be a valid age block
+		if (trimmedSource.length < 100) {
+			return false;
+		}
+		
+		// Reject if content looks like Obsidian markdown (image links, etc.)
+		if (trimmedSource.includes('![[') || trimmedSource.includes(']]')) {
+			return false;
+		}
+		
+		// Reject if content looks like regular code
+		if (trimmedSource.includes('console.log') || trimmedSource.includes('function') || 
+			trimmedSource.includes('import ') || trimmedSource.includes('class ')) {
+			return false;
+		}
+		
 		// Must contain both begin and end markers
-		if (!trimmedSource.includes('-----BEGIN AGE ENCRYPTED FILE-----') ||
-			!trimmedSource.includes('-----END AGE ENCRYPTED FILE-----')) {
+		const hasBeginMarker = trimmedSource.includes('-----BEGIN AGE ENCRYPTED FILE-----');
+		const hasEndMarker = trimmedSource.includes('-----END AGE ENCRYPTED FILE-----');
+		
+		if (!hasBeginMarker || !hasEndMarker) {
 			return false;
 		}
 		
@@ -713,9 +731,16 @@ export default class AgeEncryptPlugin extends Plugin {
 			return false;
 		}
 		
-		// Content between markers should look like base64 (basic check)
-		const base64Pattern = /^[A-Za-z0-9+/\s=]+$/;
-		if (!base64Pattern.test(contentBetween)) {
+		// Content between markers should look like base64 (strict check)
+		const base64Pattern = /^[A-Za-z0-9+/\r\n=]+$/;
+		const isBase64Like = base64Pattern.test(contentBetween);
+		
+		if (!isBase64Like) {
+			return false;
+		}
+		
+		// Additional check: content should be at least 32 characters (minimum for age encryption)
+		if (contentBetween.replace(/\s/g, '').length < 32) {
 			return false;
 		}
 		
