@@ -74,16 +74,6 @@ If your plugin does not need CSS, delete this file.
     line-height: 1.4;
 }
 
-/* Ensure all spans inside info container have identical font properties */
-.age-encrypt-decrypt-info > span {
-    color: var(--text-muted);
-    font-size: 0.85em;
-    font-family: var(--font-interface);
-    line-height: 1.4;
-    display: inline-flex;
-    align-items: center;
-}
-
 .age-encrypt-hint,
 .age-encrypt-type {
     color: var(--text-muted);
