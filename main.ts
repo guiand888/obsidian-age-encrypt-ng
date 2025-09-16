@@ -214,19 +214,19 @@ export default class AgeEncryptPlugin extends Plugin {
 		forceMode?: EncryptionMode
 	): Promise<void> {
 		try {
-			const mode = await this.determineEncryptionMode(forceMode, true);
-			if (!mode) return; // User cancelled
+			const modeResult = await this.determineEncryptionMode(forceMode, true);
+			if (!modeResult) return; // User cancelled
 
-			const encryptionOptions = await this.getEncryptionOptions(mode);
+			const encryptionOptions = await this.getEncryptionOptions(modeResult.mode);
 			if (!encryptionOptions) return; // User cancelled
 
 			const encrypted = await this.encryptionService.encryptWithMode(
 				selection, 
-				mode, 
+				modeResult.mode, 
 				encryptionOptions
 			);
 			
-		const methodText = this.createMethodText(mode, encryptionOptions);
+		const methodText = this.createMethodText(modeResult.mode, encryptionOptions);
 		const formattedBlock = this.encryptionService.formatEncryptedBlock(
 			encrypted,
 			encryptionOptions.hint,
@@ -242,7 +242,7 @@ export default class AgeEncryptPlugin extends Plugin {
 			}
 
 			editor.replaceSelection(finalBlock);
-			new Notice(`Selection encrypted using ${mode === 'keyfiles' ? 'key files' : 'passphrase'}`);
+			new Notice(`Selection encrypted using ${modeResult.mode === 'keyfiles' ? 'key files' : 'passphrase'}`);
 		} catch (error) {
 			console.error('Encryption failed:', error);
 			new Notice(`Failed to encrypt content: ${error.message}`);
@@ -258,10 +258,10 @@ export default class AgeEncryptPlugin extends Plugin {
 		}
 
 		try {
-			const mode = await this.determineEncryptionMode(forceMode, true);
-			if (!mode) return; // User cancelled
+			const modeResult = await this.determineEncryptionMode(forceMode, true);
+			if (!modeResult) return; // User cancelled
 
-			const encryptionOptions = await this.getEncryptionOptions(mode);
+			const encryptionOptions = await this.getEncryptionOptions(modeResult.mode);
 			if (!encryptionOptions) return; // User cancelled
 
 			const fileContent = await this.app.vault.read(activeFile);
@@ -279,11 +279,11 @@ export default class AgeEncryptPlugin extends Plugin {
 
 			const encrypted = await this.encryptionService.encryptWithMode(
 				contentToEncrypt,
-				mode,
+				modeResult.mode,
 				encryptionOptions
 			);
 
-		const methodText = this.createMethodText(mode, encryptionOptions);
+		const methodText = this.createMethodText(modeResult.mode, encryptionOptions);
 		const formattedBlock = this.encryptionService.formatEncryptedBlock(
 			encrypted,
 			encryptionOptions.hint,
@@ -296,7 +296,7 @@ export default class AgeEncryptPlugin extends Plugin {
 			}
 
 			await this.app.vault.modify(activeFile, finalContent);
-			new Notice(`File encrypted using ${mode === 'keyfiles' ? 'key files' : 'passphrase'}`);
+			new Notice(`File encrypted using ${modeResult.mode === 'keyfiles' ? 'key files' : 'passphrase'}`);
 		} catch (error) {
 			console.error('File encryption failed:', error);
 			new Notice(`Failed to encrypt file: ${error.message}`);
@@ -308,10 +308,10 @@ export default class AgeEncryptPlugin extends Plugin {
 		forceMode?: EncryptionMode,
 		isEncrypting: boolean = true,
 		forceChoice: boolean = false
-	): Promise<EncryptionMode | null> {
+	): Promise<{ mode: EncryptionMode; rememberPreference?: boolean } | null> {
 		// If mode is forced, use it
 		if (forceMode) {
-			return forceMode;
+			return { mode: forceMode };
 		}
 
 		// If forcing user choice (e.g., when method is unknown), always show modal
@@ -326,18 +326,18 @@ export default class AgeEncryptPlugin extends Plugin {
 				this.encryptionService.setSessionEncryptionMode(result.mode);
 			}
 			
-			return result.mode;
+			return { mode: result.mode, rememberPreference: result.remember };
 		}
 
 		// Check session override
 		const sessionMode = this.encryptionService.getSessionEncryptionMode();
 		if (sessionMode) {
-			return sessionMode;
+			return { mode: sessionMode };
 		}
 
 		// Check settings mode
 		if (this.settings.encryptionMode === 'passphrase') {
-			return 'passphrase';
+			return { mode: 'passphrase' };
 		} else if (this.settings.encryptionMode === 'keyfiles') {
 			// Validate that key files mode is properly configured
 			const validation = this.encryptionService.validateModeConfiguration(
@@ -348,10 +348,10 @@ export default class AgeEncryptPlugin extends Plugin {
 			
 			if (!validation.valid) {
 				new Notice(`Key files mode configuration error: ${validation.error}`);
-				return 'passphrase'; // Fallback to passphrase
+				return { mode: 'passphrase' }; // Fallback to passphrase
 			}
 			
-			return 'keyfiles';
+			return { mode: 'keyfiles' };
 		} else {
 			// Mixed mode - ask user
 				const modeModal = new EncryptionModeModal(this.app, isEncrypting, this.settings.defaultRememberSession);
@@ -364,7 +364,7 @@ export default class AgeEncryptPlugin extends Plugin {
 				this.encryptionService.setSessionEncryptionMode(result.mode);
 			}
 			
-			return result.mode;
+			return { mode: result.mode, rememberPreference: result.remember };
 		}
 	}
 
@@ -493,15 +493,20 @@ export default class AgeEncryptPlugin extends Plugin {
 			}
 
 			// Determine decryption mode - always prompt for choice when method is unknown
-			const mode = await this.determineEncryptionMode(undefined, false, true); // Force choice for decryption
-			if (!mode) return; // User cancelled
+			const modeResult = await this.determineEncryptionMode(undefined, false, true); // Force choice for decryption
+			if (!modeResult) return; // User cancelled
+
+			// Use user's remember preference from mode selection, fall back to global default
+			const rememberPreference = modeResult.rememberPreference !== undefined 
+				? modeResult.rememberPreference 
+				: this.settings.defaultRememberSession;
 
 			let decryptedContent: string;
 			let decryptionMethod: string;
 
-			if (mode === 'passphrase') {
-				// Use passphrase decryption
-				const modal = new PasswordModal(this.app, false, hint, this.settings.defaultRememberSession);
+			if (modeResult.mode === 'passphrase') {
+				// Use passphrase decryption with remember preference from mode selection
+				const modal = new PasswordModal(this.app, false, hint, rememberPreference);
 				const result = await modal.openAndGetPassword();
 				if (!result) return;
 
@@ -529,7 +534,8 @@ export default class AgeEncryptPlugin extends Plugin {
 						displayName: kf.split('/').pop()
 					}));
 
-					const keyFileModal = new KeyFilePasswordModal(this.app, unlockRequests, this.settings.defaultRememberSession);
+					// Use remember preference from mode selection
+					const keyFileModal = new KeyFilePasswordModal(this.app, unlockRequests, rememberPreference);
 					const unlockResult = await keyFileModal.openAndUnlockKeyFiles();
 					
 					if (unlockResult.cancelled) {
@@ -657,19 +663,19 @@ export default class AgeEncryptPlugin extends Plugin {
 				const editedContent = textarea.value;
 				
 				// Determine encryption mode for re-encryption
-				const mode = await this.determineEncryptionMode(undefined, true);
-				if (!mode) return;
+				const modeResult = await this.determineEncryptionMode(undefined, true);
+				if (!modeResult) return;
 
-				const encryptionOptions = await this.getEncryptionOptions(mode);
+				const encryptionOptions = await this.getEncryptionOptions(modeResult.mode);
 				if (!encryptionOptions) return;
 
 				const encrypted = await this.encryptionService.encryptWithMode(
 					editedContent,
-					mode,
+					modeResult.mode,
 					encryptionOptions
 				);
 				
-			const methodText = this.createMethodText(mode, encryptionOptions);
+			const methodText = this.createMethodText(modeResult.mode, encryptionOptions);
 			const formattedBlock = this.encryptionService.formatEncryptedBlock(
 				encrypted,
 				encryptionOptions.hint || hint,
@@ -677,7 +683,7 @@ export default class AgeEncryptPlugin extends Plugin {
 			);
 
 				await this.updateFileContent(file, startLine, endLine, formattedBlock);
-				new Notice(`Content re-encrypted using ${mode === 'keyfiles' ? 'key files' : 'passphrase'}`);
+				new Notice(`Content re-encrypted using ${modeResult.mode === 'keyfiles' ? 'key files' : 'passphrase'}`);
 			} catch (error) {
 				console.error('Re-encryption failed:', error);
 				new Notice(`Failed to re-encrypt content: ${error.message}`);
