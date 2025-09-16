@@ -69,20 +69,27 @@ If your plugin does not need CSS, delete this file.
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
+    gap: 16px;
     flex-wrap: wrap;
     line-height: 1.4;
 }
 
-.age-encrypt-hint,
-.age-encrypt-type {
+/* Ensure all spans inside info container have identical font properties */
+.age-encrypt-decrypt-info > span {
     color: var(--text-muted);
-    display: inline-flex;
-    align-items: center;
     font-size: 0.85em;
     font-family: var(--font-interface);
     line-height: 1.4;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background-color: var(--background-modifier-hover);
 }
+
+/* Hint and type classes are now styled by the universal span rule above */
+.age-encrypt-hint {}
+.age-encrypt-type {}
 
 .age-encrypt-button {
     display: inline-flex;

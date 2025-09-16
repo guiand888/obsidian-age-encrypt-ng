@@ -68,33 +68,26 @@ export default class AgeEncryptPlugin extends Plugin {
 					text: 'Click to decrypt'
 				});
 
-				if (hint) {
-					infoContainer.createSpan({
-						cls: 'age-encrypt-hint',
-						text: `• Hint: ${hint}`
-					});
-				}
-
-				// Add encryption type info with method details
-				let methodText = '• Encrypted with age';
-				if (method) {
-					if (method === 'passphrase') {
-						methodText += ' (passphrase)';
-					} else if (method.startsWith('keyfiles:')) {
-						const keyFileNames = method.substring(9).split(',').map(name => name.trim()).filter(name => name);
-						if (keyFileNames.length === 1) {
-							methodText += ` (key file: ${keyFileNames[0]})`;
-						} else if (keyFileNames.length > 1) {
-							methodText += ` (key files: ${keyFileNames.join(', ')})`;
-						} else {
-							methodText += ' (key files)';
-						}
-					}
-				}
+			if (hint) {
 				infoContainer.createSpan({
-					cls: 'age-encrypt-type',
-					text: methodText
+					cls: 'age-encrypt-hint',
+					text: `Hint: ${hint}`
 				});
+			}
+
+			// Add concise encryption type info
+			let methodText = 'Method Unknown - likely passphrase';
+			if (method) {
+				if (method === 'passphrase') {
+					methodText = 'Passphrase Encrypted';
+				} else if (method.startsWith('key file')) {
+					methodText = 'Key File Encrypted';
+				}
+			}
+			infoContainer.createSpan({
+				cls: 'age-encrypt-type',
+				text: methodText
+			});
 
 			decryptButton.onclick = async () => {
 				await this.decryptContent(el, content, hint, ctx);
