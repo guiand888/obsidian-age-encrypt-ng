@@ -69,16 +69,12 @@ If your plugin does not need CSS, delete this file.
     line-height: 1.4;
 }
 
-.age-encrypt-hint {
-    color: var(--text-muted);
-    display: inline-flex;
-    align-items: center;
-}
-
+.age-encrypt-hint,
 .age-encrypt-type {
     color: var(--text-muted);
     display: inline-flex;
     align-items: center;
+    font-size: 0.9em;
 }
 
 .age-encrypt-button {
@@ -94,12 +90,6 @@ If your plugin does not need CSS, delete this file.
 
 .age-encrypt-button:hover {
     background-color: var(--interactive-accent-hover);
-}
-
-.age-encrypt-hint {
-    font-size: 0.8em;
-    color: var(--text-muted);
-    margin-left: 8px;
 }
 
 .age-encrypt-textarea {

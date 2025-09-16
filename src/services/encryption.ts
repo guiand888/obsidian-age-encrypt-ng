@@ -20,6 +20,7 @@ export interface EnhancedEncryptionOptions extends EncryptionOptions {
 export interface EncryptedBlock {
     content: string;
     hint?: string;
+    method?: string;  // 'passphrase' or 'keyfiles:filename1,filename2' etc.
 }
 
 export class EncryptionService {
@@ -144,10 +145,11 @@ async encrypt(content: string, options: LegacyEncryptionOptions | EnhancedEncryp
         }
     }
 
-    formatEncryptedBlock(encryptedContent: string, hint?: string): string {
+    formatEncryptedBlock(encryptedContent: string, hint?: string, method?: string): string {
         const block = [
             '```age',
             hint ? `hint: ${hint}` : '',
+            method ? `method: ${method}` : '',
             '-----BEGIN AGE ENCRYPTED FILE-----',
             encryptedContent,
             '-----END AGE ENCRYPTED FILE-----',
@@ -170,11 +172,20 @@ async encrypt(content: string, options: LegacyEncryptionOptions | EnhancedEncryp
         }
 
         let hint: string | undefined;
+        let method: string | undefined;
         let contentStartIndex = 0;
 
-        if (lines[0].startsWith('hint: ')) {
-            hint = lines[0].substring(6);
-            contentStartIndex = 1;
+        // Parse metadata lines (hint and method)
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].startsWith('hint: ')) {
+                hint = lines[i].substring(6);
+                contentStartIndex = Math.max(contentStartIndex, i + 1);
+            } else if (lines[i].startsWith('method: ')) {
+                method = lines[i].substring(8);
+                contentStartIndex = Math.max(contentStartIndex, i + 1);
+            } else if (lines[i] === '-----BEGIN AGE ENCRYPTED FILE-----') {
+                break;
+            }
         }
 
         const beginIndex = lines.findIndex(line => line === '-----BEGIN AGE ENCRYPTED FILE-----');
@@ -190,7 +201,7 @@ async encrypt(content: string, options: LegacyEncryptionOptions | EnhancedEncryp
             throw new Error('Invalid encrypted block format: no content found');
         }
 
-        return { content, hint };
+        return { content, hint, method };
     }
 
     hasStoredPassword(encryptedContent: string): boolean {

@@ -35,7 +35,7 @@ export default class AgeEncryptPlugin extends Plugin {
 			ctx: MarkdownPostProcessorContext
 		) => {
 			try {
-				const { content, hint } = this.encryptionService.parseEncryptedBlock(source);
+				const { content, hint, method } = this.encryptionService.parseEncryptedBlock(source);
 				const decryptButton = el.createEl('button', {
 					cls: 'age-encrypt-decrypt-button',
 					attr: { 'aria-label': 'Decrypt encrypted content' }
@@ -68,10 +68,25 @@ export default class AgeEncryptPlugin extends Plugin {
 					});
 				}
 
-				// Add encryption type info
+				// Add encryption type info with method details
+				let methodText = '• Encrypted with age';
+				if (method) {
+					if (method === 'passphrase') {
+						methodText += ' (passphrase)';
+					} else if (method.startsWith('keyfiles:')) {
+						const keyFileNames = method.substring(9).split(',').map(name => name.trim()).filter(name => name);
+						if (keyFileNames.length === 1) {
+							methodText += ` (key file: ${keyFileNames[0]})`;
+						} else if (keyFileNames.length > 1) {
+							methodText += ` (key files: ${keyFileNames.join(', ')})`;
+						} else {
+							methodText += ' (key files)';
+						}
+					}
+				}
 				infoContainer.createSpan({
 					cls: 'age-encrypt-type',
-					text: '• Encrypted with age'
+					text: methodText
 				});
 
 			decryptButton.onclick = async () => {
@@ -211,10 +226,12 @@ export default class AgeEncryptPlugin extends Plugin {
 				encryptionOptions
 			);
 			
-			const formattedBlock = this.encryptionService.formatEncryptedBlock(
-				encrypted,
-				encryptionOptions.hint
-			);
+		const methodText = this.createMethodText(mode, encryptionOptions);
+		const formattedBlock = this.encryptionService.formatEncryptedBlock(
+			encrypted,
+			encryptionOptions.hint,
+			methodText
+		);
 
 			const endOfSelection = editor.posToOffset(editor.getCursor('to'));
 			const endOfFile = editor.getValue().length;
@@ -266,10 +283,12 @@ export default class AgeEncryptPlugin extends Plugin {
 				encryptionOptions
 			);
 
-			const formattedBlock = this.encryptionService.formatEncryptedBlock(
-				encrypted,
-				encryptionOptions.hint
-			);
+		const methodText = this.createMethodText(mode, encryptionOptions);
+		const formattedBlock = this.encryptionService.formatEncryptedBlock(
+			encrypted,
+			encryptionOptions.hint,
+			methodText
+		);
 
 			let finalContent = frontmatter + formattedBlock;
 			if (contentToEncrypt.length > 0 && !contentToEncrypt.endsWith('\n')) {
@@ -634,10 +653,12 @@ export default class AgeEncryptPlugin extends Plugin {
 					encryptionOptions
 				);
 				
-				const formattedBlock = this.encryptionService.formatEncryptedBlock(
-					encrypted,
-					encryptionOptions.hint || hint
-				);
+			const methodText = this.createMethodText(mode, encryptionOptions);
+			const formattedBlock = this.encryptionService.formatEncryptedBlock(
+				encrypted,
+				encryptionOptions.hint || hint,
+				methodText
+			);
 
 				await this.updateFileContent(file, startLine, endLine, formattedBlock);
 				new Notice(`Content re-encrypted using ${mode === 'keyfiles' ? 'key files' : 'passphrase'}`);
@@ -657,6 +678,35 @@ export default class AgeEncryptPlugin extends Plugin {
 				new Notice(`Failed to save as plain text: ${error.message}`);
 			}
 		};
+	}
+
+	// Create method text for encrypted block metadata
+	private createMethodText(mode: EncryptionMode, options: {
+		password?: string;
+		hint?: string;
+		remember?: boolean;
+		keyFilePaths?: string[];
+		recipients?: string[];
+	}): string {
+		if (mode === 'passphrase') {
+			return 'passphrase';
+		} else {
+			// Key files mode - get key file names without full paths
+			const keyFileNames: string[] = [];
+			if (options.keyFilePaths) {
+				for (const keyFilePath of options.keyFilePaths) {
+					const fileName = keyFilePath.split('/').pop() || keyFilePath;
+					keyFileNames.push(fileName);
+				}
+				}
+			if (keyFileNames.length === 1) {
+				return `key file: ${keyFileNames[0]}`;
+			} else if (keyFileNames.length > 1) {
+				return `key files: ${keyFileNames.join(', ')}`;
+			} else {
+				return 'key files';
+			}
+		}
 	}
 
 	// Clear all cached passphrases and key files
