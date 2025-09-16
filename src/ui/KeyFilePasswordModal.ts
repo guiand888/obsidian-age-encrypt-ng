@@ -167,6 +167,7 @@ export class KeyFilePasswordModal extends Modal {
     }
 
     private async tryUnlockCurrent(showError: (msg: string) => void, clearError: () => void): Promise<void> {
+        console.log('KeyFilePasswordModal: Attempting to unlock current key file');
         clearError();
         
         if (!this.currentPassphrase.trim()) {
@@ -175,10 +176,13 @@ export class KeyFilePasswordModal extends Modal {
         }
 
         const currentKeyFile = this.keyFiles[this.currentIndex];
+        console.log('KeyFilePasswordModal: Current key file:', currentKeyFile);
         
         try {
             // Import KeyFileService here to avoid circular dependencies
-            const keyFileService = (this.app as any).plugins?.plugins?.['age-encrypt']?.encryptionService?.getKeyFileService();
+            console.log('KeyFilePasswordModal: Looking up plugin service...');
+            const keyFileService = (this.app as any).plugins?.plugins?.['obsidian-age-encrypt-ng']?.encryptionService?.getKeyFileService();
+            console.log('KeyFilePasswordModal: KeyFileService found:', !!keyFileService);
             if (!keyFileService) {
                 throw new Error('Key file service not available');
             }

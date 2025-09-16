@@ -495,14 +495,17 @@ export default class AgeEncryptPlugin extends Plugin {
 			}
 
 			// Determine decryption mode - use known method to pre-select option
+			console.log('Determining decryption mode, knownMethod:', knownMethod);
 			let suggestedMode: EncryptionMode | undefined;
 			if (knownMethod === 'passphrase') {
 				suggestedMode = 'passphrase';
 			} else if (knownMethod && knownMethod.startsWith('key file')) {
 				suggestedMode = 'keyfiles';
 			}
+			console.log('Suggested mode:', suggestedMode);
 			
 			const modeResult = await this.determineEncryptionMode(undefined, false, true, suggestedMode);
+			console.log('Mode selection result:', modeResult);
 			if (!modeResult) return; // User cancelled
 
 			// Use user's remember preference from mode selection, fall back to global default
@@ -529,12 +532,17 @@ export default class AgeEncryptPlugin extends Plugin {
 				}
 			} else {
 				// Use key files decryption
+				console.log('Using key files decryption');
 				const keyFileService = this.encryptionService.getKeyFileService()!;
 				let unlockedIdentities: string[] = [];
 				
+				console.log('Available key files:', this.settings.keyFiles);
 				const keyFilesToUnlock = this.settings.keyFiles.filter(kf => {
-					return !keyFileService?.getCachedIdentity(kf);
+					const cached = keyFileService?.getCachedIdentity(kf);
+					console.log(`Key file ${kf} cached:`, !!cached);
+					return !cached;
 				});
+				console.log('Key files to unlock:', keyFilesToUnlock);
 
 				// Unlock key files if needed
 				if (keyFilesToUnlock.length > 0) {

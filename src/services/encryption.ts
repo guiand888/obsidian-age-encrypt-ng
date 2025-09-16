@@ -46,7 +46,14 @@ export class EncryptionService {
 
 // Initialize with Obsidian App when available
 init(app: App): void {
-    this.keyFileService = new KeyFileService(app);
+    try {
+        console.log('EncryptionService: Initializing with app instance');
+        this.keyFileService = new KeyFileService(app);
+        console.log('EncryptionService: KeyFileService initialized successfully');
+    } catch (error) {
+        console.error('EncryptionService: Failed to initialize KeyFileService:', error);
+        throw error;
+    }
 }
 
 async encrypt(content: string, options: LegacyEncryptionOptions | EnhancedEncryptionOptions): Promise<string> {
@@ -387,6 +394,7 @@ async encrypt(content: string, options: LegacyEncryptionOptions | EnhancedEncryp
 
     // Get access to key file service for external use
     getKeyFileService(): KeyFileService | undefined {
+        console.log('getKeyFileService called, keyFileService is:', this.keyFileService ? 'initialized' : 'undefined');
         return this.keyFileService;
     }
 }
