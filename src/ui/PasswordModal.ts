@@ -42,12 +42,10 @@ export class PasswordModal extends Modal {
             if (this.errorEl) {
                 this.errorEl.textContent = message;
             } else {
-                this.errorEl = contentEl.createEl('p', {
+                this.errorEl = contentEl.createEl('div', {
                     text: message,
                     cls: 'age-encrypt-error'
                 });
-                this.errorEl.style.color = 'var(--text-error)';
-                this.errorEl.style.marginTop = '1em';
             }
         };
 

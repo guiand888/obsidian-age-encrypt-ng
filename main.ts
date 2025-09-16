@@ -76,7 +76,7 @@ export default class AgeEncryptPlugin extends Plugin {
 			}
 
 			// Add concise encryption type info
-			let methodText = 'Method Unknown - likely passphrase';
+			let methodText = 'Method Unknown - likely Passphrase';
 			if (method) {
 				if (method === 'passphrase') {
 					methodText = 'Passphrase Encrypted';
