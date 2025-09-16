@@ -15,10 +15,15 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
 
         containerEl.empty();
 
-        containerEl.createEl('h2', { text: 'Age Encrypt Settings' });
+        // Use Obsidian's standard settings header
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Age Encrypt Settings');
 
-        // Encryption Mode Section
-        containerEl.createEl('h3', { text: 'Encryption Mode' });
+        // Encryption Mode Section  
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Encryption Mode');
         
         new Setting(containerEl)
             .setName('Default encryption mode')
@@ -45,7 +50,9 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
         }
 
         // General Settings Section
-        containerEl.createEl('h3', { text: 'General Settings' });
+        new Setting(containerEl)
+            .setHeading()
+            .setName('General Settings');
         
         new Setting(containerEl)
             .setName('Exclude frontmatter from encryption')
@@ -80,12 +87,10 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
     }
 
     private displayKeyFileSettings(containerEl: HTMLElement): void {
-        containerEl.createEl('h3', { text: 'Key Files' });
-        
-        containerEl.createEl('p', { 
-            text: 'Encrypted key files containing age identities. These files should be encrypted with passphrases.',
-            cls: 'setting-item-description'
-        });
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Key Files')
+            .setDesc('Encrypted key files containing age identities. These files should be encrypted with passphrases.');
 
         // Add new key file
         let currentPathInput: TextComponent;
@@ -127,7 +132,9 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
 
         // List existing key files
         if (this.plugin.settings.keyFiles.length > 0) {
-            containerEl.createEl('h4', { text: 'Configured Key Files' });
+            new Setting(containerEl)
+                .setHeading()
+                .setName('Configured Key Files');
             
             for (let i = 0; i < this.plugin.settings.keyFiles.length; i++) {
                 const keyFile = this.plugin.settings.keyFiles[i];
@@ -162,12 +169,10 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
     }
 
     private displayRecipientSettings(containerEl: HTMLElement): void {
-        containerEl.createEl('h3', { text: 'Direct Recipients' });
-        
-        containerEl.createEl('p', { 
-            text: 'Direct age public keys (age1...) for encryption. These can be used alongside or instead of key files.',
-            cls: 'setting-item-description'
-        });
+        new Setting(containerEl)
+            .setHeading()
+            .setName('Direct Recipients')
+            .setDesc('Direct age public keys (age1...) for encryption. These can be used alongside or instead of key files.');
 
         // Add new recipient
         new Setting(containerEl)
@@ -209,7 +214,9 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
 
         // List existing recipients
         if (this.plugin.settings.recipients.length > 0) {
-            containerEl.createEl('h4', { text: 'Configured Recipients' });
+            new Setting(containerEl)
+                .setHeading()
+                .setName('Configured Recipients');
             
             for (let i = 0; i < this.plugin.settings.recipients.length; i++) {
                 const recipient = this.plugin.settings.recipients[i];

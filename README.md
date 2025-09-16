@@ -1,6 +1,8 @@
 # Age Encrypt NG
 
-Fork and rewrite of [obsidian-age-encrypt](https://github.com/mr-1311/obsidian-age-encrypt) by Metin Ur. Provides advanced [age encryption](https://github.com/FiloSottile/age) for Obsidian notes with key file support and enhanced workflows.
+Fork and rewrite of [obsidian-age-encrypt](https://github.com/mr-1311/obsidian-age-encrypt) by Metin Ur. 🙏🏻  
+
+Provides advanced [age encryption](https://github.com/FiloSottile/age) for Obsidian notes with key file support and enhanced workflows.
 
 ## New Features
 - Age key file encryption (.age identity files)
@@ -18,6 +20,47 @@ Fork and rewrite of [obsidian-age-encrypt](https://github.com/mr-1311/obsidian-a
 
 > [!CAUTION]
 > **This plugin comes with NO WARRANTY and NO RESPONSIBILITY for any data loss or security breaches, use at your own risk**
+
+## User Guide
+
+### Encryption Methods
+
+**Passphrase Encryption**: Standard symmetric encryption with a password you provide.
+
+**Key File Encryption**: Uses `.age` identity files (which must be encrypted with a passphrase). More secure for shared access scenarios.
+
+### Basic Usage
+
+1. **Encrypt content**: Select text or use command palette
+   - `Encrypt Selection` - encrypts selected text (auto mode)
+   - `Encrypt File` - encrypts entire file, excludes frontmatter by default (auto mode)
+   - Use explicit mode commands for specific encryption type
+
+**Auto Mode**: Uses your configured default encryption method from settings. If set to "mixed" mode, prompts you to choose. Honors remembered session preferences.
+
+2. **Decrypt content**: Click encrypted blocks or use command palette
+   - Plugin detects encryption method automatically when possible
+   - Shows encryption method and key ID in decrypted view
+
+### Session Management
+
+**Remember Passphrases**: Global setting controls default behavior for remember toggles.
+
+- **Note passphrases**: Remembered per-note, applies only to that specific encrypted block
+- **Key file passphrases**: Unlocks the identity, applies to all content encrypted with that key file
+
+**Clear Credentials**: Use `Clear all remembered passphrases and key files` from command palette.
+
+### Backward Compatibility
+
+This plugin is backward compatible with v1.2.0 of the upstream obsidian-age-encrypt. Notes encrypted with the upstream plugin lack encryption metadata, so you'll need to manually select "Passphrase" during decryption (the UI shows "Method Unknown - likely Passphrase" as a hint).
+
+### Settings
+
+- **Encryption Mode**: Choose default behavior (passphrase, key files, or mixed)
+- **Key Files**: Configure paths to `.age` identity files
+- **Remember by Default**: Control default state of remember toggles
+- **Exclude Frontmatter**: When encrypting files, preserve YAML frontmatter
 
 <!--
 Original README content commented out for later rewrite:
