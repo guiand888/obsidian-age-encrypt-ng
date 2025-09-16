@@ -24,6 +24,7 @@ export interface EncryptedBlock {
 
 export class EncryptionService {
     private sessionPasswords: Map<string, string> = new Map();
+    private sessionEncryptionMode?: 'keyfiles' | 'passphrase' = undefined; // Session override
     private keyFileService?: KeyFileService;
 
     private arrayBufferToBase64(buffer: Uint8Array): string {
@@ -80,7 +81,7 @@ async encrypt(content: string, options: LegacyEncryptionOptions | EnhancedEncryp
             const encryptedArray = await encrypter.encrypt(content);
             const encryptedBase64 = this.arrayBufferToBase64(encryptedArray);
 
-            if (options.remember) {
+            if (options.remember && options.password) {
                 this.sessionPasswords.set(encryptedBase64, options.password);
             }
             return encryptedBase64;
@@ -204,9 +205,170 @@ async encrypt(content: string, options: LegacyEncryptionOptions | EnhancedEncryp
         this.sessionPasswords.clear();
     }
 
+    // Session mode management
+    setSessionEncryptionMode(mode: 'keyfiles' | 'passphrase' | undefined): void {
+        this.sessionEncryptionMode = mode;
+    }
+
+    getSessionEncryptionMode(): 'keyfiles' | 'passphrase' | undefined {
+        return this.sessionEncryptionMode;
+    }
+
+    // Enhanced encrypt method that handles mode selection
+    async encryptWithMode(
+        content: string, 
+        mode: 'keyfiles' | 'passphrase', 
+        options: {
+            password?: string;
+            hint?: string;
+            remember?: boolean;
+            keyFilePaths?: string[];
+            recipients?: string[];
+        }
+    ): Promise<string> {
+        if (mode === 'keyfiles') {
+            return this.encrypt(content, {
+                useKeyFiles: true,
+                keyFilePaths: options.keyFilePaths,
+                recipients: options.recipients,
+                hint: options.hint
+            });
+        } else {
+            if (!options.password) {
+                throw new Error('Password is required for passphrase mode');
+            }
+            return this.encrypt(content, {
+                password: options.password,
+                hint: options.hint,
+                remember: options.remember
+            });
+        }
+    }
+
+    // Enhanced decrypt method with intelligent fallback
+    async decryptIntelligent(
+        encryptedContent: string, 
+        availableKeyFiles: string[] = [],
+        availableRecipients: string[] = []
+    ): Promise<{ decryptedContent: string; method: string }> {
+        const errors: string[] = [];
+
+        // Try session password cache first (fastest)
+        if (this.hasStoredPassword(encryptedContent)) {
+            try {
+                const password = this.getStoredPassword(encryptedContent)!;
+                const decrypted = await this.decrypt(encryptedContent, password);
+                return { decryptedContent: decrypted, method: 'cached_password' };
+            } catch (error) {
+                errors.push(`Cached password failed: ${error.message}`);
+            }
+        }
+
+        // Try cached key file identities (second fastest)
+        if (this.keyFileService && availableKeyFiles.length > 0) {
+            const cachedIdentities: string[] = [];
+            const cachedKeyFiles: string[] = [];
+            
+            for (const keyFile of availableKeyFiles) {
+                const cached = this.keyFileService.getCachedIdentity(keyFile);
+                if (cached?.identity) {
+                    cachedIdentities.push(cached.identity);
+                    cachedKeyFiles.push(keyFile);
+                }
+            }
+
+            if (cachedIdentities.length > 0) {
+                try {
+                    const decrypted = await this.decryptWithOptions(encryptedContent, {
+                        identities: cachedIdentities
+                    });
+                    return { 
+                        decryptedContent: decrypted, 
+                        method: `cached_keyfiles(${cachedKeyFiles.length})` 
+                    };
+                } catch (error) {
+                    errors.push(`Cached key files failed: ${error.message}`);
+                }
+            }
+        }
+
+        // If we get here, we need user intervention
+        throw new Error(`Automatic decryption failed: ${errors.join('; ')}`);
+    }
+
+    // Method to unlock key files for use
+    async unlockKeyFiles(keyFiles: string[], passphrases: { [filePath: string]: string }): Promise<string[]> {
+        if (!this.keyFileService) {
+            throw new Error('Key file service not available');
+        }
+
+        const unlockedFiles: string[] = [];
+        const errors: string[] = [];
+
+        for (const keyFile of keyFiles) {
+            const passphrase = passphrases[keyFile];
+            if (!passphrase) {
+                errors.push(`No passphrase provided for ${keyFile}`);
+                continue;
+            }
+
+            try {
+                await this.keyFileService.decryptKeyFile(keyFile, passphrase);
+                unlockedFiles.push(keyFile);
+            } catch (error) {
+                errors.push(`Failed to unlock ${keyFile}: ${error.message}`);
+            }
+        }
+
+        if (errors.length > 0 && unlockedFiles.length === 0) {
+            throw new Error(`Failed to unlock any key files: ${errors.join('; ')}`);
+        }
+
+        return unlockedFiles;
+    }
+
+    // Method to validate configuration for a given mode
+    validateModeConfiguration(mode: 'keyfiles' | 'passphrase' | 'mixed', keyFiles: string[], recipients: string[]): {
+        valid: boolean;
+        error?: string;
+        warnings?: string[];
+    } {
+        const warnings: string[] = [];
+
+        if (mode === 'keyfiles') {
+            if (keyFiles.length === 0 && recipients.length === 0) {
+                return {
+                    valid: false,
+                    error: 'Key files mode requires at least one key file or recipient to be configured'
+                };
+            }
+
+            // Check if key files exist and are cached
+            if (this.keyFileService && keyFiles.length > 0) {
+                const unlockedCount = keyFiles.filter(kf => 
+                    this.keyFileService!.getCachedIdentity(kf)
+                ).length;
+                
+                if (unlockedCount === 0) {
+                    warnings.push('No key files are currently unlocked. You will need to enter passphrases.');
+                }
+            }
+
+            return { valid: true, warnings };
+        } else if (mode === 'passphrase') {
+            return { valid: true };
+        } else { // mixed
+            if (keyFiles.length === 0 && recipients.length === 0) {
+                warnings.push('No key files or recipients configured. Mixed mode will only offer passphrase option.');
+            }
+            return { valid: true, warnings };
+        }
+    }
+
     // Clear all cached data (passwords and identities)
     clearAllCaches(): void {
         this.sessionPasswords.clear();
+        this.sessionEncryptionMode = undefined;
         if (this.keyFileService) {
             this.keyFileService.clearCache();
         }

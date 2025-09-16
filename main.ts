@@ -14,10 +14,12 @@ import { EncryptionService } from './src/services/encryption';
 import { AgeEncryptSettings, DEFAULT_SETTINGS } from './src/settings';
 import { AgeEncryptSettingTab } from './src/ui/SettingsTab';
 import { PasswordModal } from './src/ui/PasswordModal';
+import { EncryptionModeModal, EncryptionMode } from './src/ui/EncryptionModeModal';
+import { KeyFilePasswordModal, KeyFileUnlockRequest } from './src/ui/KeyFilePasswordModal';
 
 export default class AgeEncryptPlugin extends Plugin {
 	settings: AgeEncryptSettings;
-	private encryptionService: EncryptionService;
+	encryptionService: EncryptionService;
 
 	async onload(): Promise<void> {
 	await this.loadSettings();
@@ -72,103 +74,19 @@ export default class AgeEncryptPlugin extends Plugin {
 					text: '• Encrypted with age'
 				});
 
-				decryptButton.onclick = async () => {
-					let password: string | undefined;
-					let rememberPassword = false;
-
-					if (this.encryptionService.hasStoredPassword(content)) {
-						password = this.encryptionService.getStoredPassword(content);
-						rememberPassword = true;
-					} else {
-						const result = await new PasswordModal(this.app, false, hint)
-							.openAndGetPassword();
-						if (!result) return;
-						password = result.password;
-						rememberPassword = result.remember || false;
-					}
-
-					try {
-						const decrypted = await this.encryptionService.decrypt(content, password!);
-						el.empty();
-
-						// Calculate number of lines in decrypted text
-						const lineCount = decrypted.split('\n').length;
-						const height = lineCount * 22 + 16;
-
-						// Create editable textarea with dynamic height
-						const textarea = el.createEl('textarea', {
-							text: decrypted,
-							cls: 'age-encrypt-textarea'
-						});
-
-						// Set initial height and font size
-						textarea.style.height = `${height}px`;
-
-						// Create button container
-						const buttonContainer = el.createDiv({
-							cls: 'age-encrypt-button-container'
-						});
-
-						// Create save encrypted button
-						const saveEncryptedButton = buttonContainer.createEl('button', {
-							text: 'Save encrypted',
-							cls: 'age-encrypt-button'
-						});
-
-						// Create save as plain text button
-						const savePlainTextButton = buttonContainer.createEl('button', {
-							text: 'Save as plain text',
-							cls: 'age-encrypt-button age-encrypt-button-secondary'
-						});
-
-						// Get file and position information
-						const file = this.app.workspace.getActiveFile();
-						const startLine = ctx.getSectionInfo(el)?.lineStart || 0;
-						const endLine = ctx.getSectionInfo(el)?.lineEnd || 0;
-
-						saveEncryptedButton.onclick = async () => {
-							try {
-								const editedContent = textarea.value;
-								const encrypted = await this.encryptionService.encrypt(editedContent, {
-									password: password!,
-									hint: hint,
-									remember: rememberPassword
-								});
-								const formattedBlock = this.encryptionService.formatEncryptedBlock(
-									encrypted,
-									hint
-								);
-
-								await this.updateFileContent(file, startLine, endLine, formattedBlock);
-								new Notice('Content re-encrypted successfully');
-							} catch (error) {
-								new Notice('Failed to re-encrypt content');
-							}
-						};
-
-						savePlainTextButton.onclick = async () => {
-							try {
-								const editedContent = textarea.value;
-								await this.updateFileContent(file, startLine, endLine, editedContent);
-								new Notice('Saved as plain text');
-							} catch (error) {
-								new Notice('Failed to save as plain text');
-							}
-						};
-					} catch (error) {
-						new Notice('Failed to decrypt content');
-					}
-				};
+			decryptButton.onclick = async () => {
+				await this.decryptContent(el, content, hint, ctx);
+			};
 			} catch (error) {
 				console.error('Failed to process age codeblock:', error);
 				el.createDiv({ text: 'Invalid encrypted content' });
 			}
 		});
 
-		// Add command to encrypt selection
+		// Auto mode commands (respect settings)
 		this.addCommand({
 			id: 'encrypt-selection',
-			name: 'Encrypt selection',
+			name: 'Encrypt selection (auto)',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				const selection = editor.getSelection();
 				if (!selection) {
@@ -176,89 +94,63 @@ export default class AgeEncryptPlugin extends Plugin {
 					return;
 				}
 
-				const modal = new PasswordModal(this.app, true);
-				const result = await modal.openAndGetPassword();
-
-				if (!result) return;
-
-				try {
-					const encrypted = await this.encryptionService.encrypt(selection, {
-						password: result.password,
-						hint: result.hint,
-						remember: result.remember
-					});
-					let formattedBlock = this.encryptionService.formatEncryptedBlock(
-						encrypted,
-						result.hint
-					);
-
-					const endOfSelection = editor.posToOffset(editor.getCursor('to'));
-					const endOfFile = editor.getValue().length;
-
-					if (endOfSelection === endOfFile) {
-						formattedBlock += '\n';
-					}
-
-					editor.replaceSelection(formattedBlock);
-				} catch (error) {
-					new Notice('Failed to encrypt content');
-				}
+				await this.encryptSelection(editor, selection);
 			}
 		});
 
-		// Add command to encrypt entire file
+		// Explicit passphrase commands
 		this.addCommand({
-			id: 'encrypt-file',
-			name: 'Encrypt file',
-			callback: async () => {
-				const activeFile = this.app.workspace.getActiveFile();
-				if (!activeFile) {
-					new Notice('No active file');
+			id: 'encrypt-selection-passphrase',
+			name: 'Encrypt selection (with passphrase)',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				const selection = editor.getSelection();
+				if (!selection) {
+					new Notice('No text selected');
 					return;
 				}
 
-				const fileContent = await this.app.vault.read(activeFile);
-				const modal = new PasswordModal(this.app, true);
-				const result = await modal.openAndGetPassword();
+				await this.encryptSelection(editor, selection, 'passphrase');
+			}
+		});
 
-				if (!result) return;
-
-				try {
-					let contentToEncrypt = fileContent.trimEnd();
-					let frontmatter = '';
-
-					if (this.settings.excludeFrontmatter) {
-						const frontmatterRegex = /^---\n([\s\S]*?)\n---\n/;
-						const match = fileContent.match(frontmatterRegex);
-						if (match) {
-							frontmatter = match[0];
-							contentToEncrypt = fileContent.substring(frontmatter.length).trimEnd();
-						}
-					}
-
-					const encrypted = await this.encryptionService.encrypt(contentToEncrypt, {
-						password: result.password,
-						hint: result.hint,
-						remember: result.remember
-					});
-
-					const formattedBlock = this.encryptionService.formatEncryptedBlock(
-						encrypted,
-						result.hint
-					);
-
-					let finalContent = frontmatter + formattedBlock;
-					// Add a newline only if the original content (that was encrypted) is not empty
-					// and does not already end with a newline.
-					if (contentToEncrypt.length > 0 && !contentToEncrypt.endsWith('\n')) {
-						finalContent += '\n';
-					}
-
-					await this.app.vault.modify(activeFile, finalContent);
-					new Notice('File encrypted successfully');
-				} catch (error) {
-					new Notice('Failed to encrypt file');
+		// Explicit key files commands
+		this.addCommand({
+			id: 'encrypt-selection-keyfiles',
+			name: 'Encrypt selection (with key files)',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				const selection = editor.getSelection();
+				if (!selection) {
+					new Notice('No text selected');
+					return;
 				}
+
+				await this.encryptSelection(editor, selection, 'keyfiles');
+			}
+		});
+
+		// Auto mode file commands
+		this.addCommand({
+			id: 'encrypt-file',
+			name: 'Encrypt file (auto)',
+			callback: async () => {
+				await this.encryptFile();
+			}
+		});
+
+		// Explicit file encryption commands
+		this.addCommand({
+			id: 'encrypt-file-passphrase',
+			name: 'Encrypt file (with passphrase)',
+			callback: async () => {
+				await this.encryptFile('passphrase');
+			}
+		});
+
+		this.addCommand({
+			id: 'encrypt-file-keyfiles',
+			name: 'Encrypt file (with key files)',
+			callback: async () => {
+				await this.encryptFile('keyfiles');
 			}
 		});
 	}
@@ -289,5 +181,405 @@ export default class AgeEncryptPlugin extends Plugin {
 			lines.splice(startLine, endLine - startLine + 1, newContent);
 			return lines.join('\n');
 		});
+	}
+
+	// Comprehensive encryption method for selections
+	private async encryptSelection(
+		editor: Editor, 
+		selection: string, 
+		forceMode?: EncryptionMode
+	): Promise<void> {
+		try {
+			const mode = await this.determineEncryptionMode(forceMode, true);
+			if (!mode) return; // User cancelled
+
+			const encryptionOptions = await this.getEncryptionOptions(mode);
+			if (!encryptionOptions) return; // User cancelled
+
+			const encrypted = await this.encryptionService.encryptWithMode(
+				selection, 
+				mode, 
+				encryptionOptions
+			);
+			
+			const formattedBlock = this.encryptionService.formatEncryptedBlock(
+				encrypted,
+				encryptionOptions.hint
+			);
+
+			const endOfSelection = editor.posToOffset(editor.getCursor('to'));
+			const endOfFile = editor.getValue().length;
+
+			let finalBlock = formattedBlock;
+			if (endOfSelection === endOfFile) {
+				finalBlock += '\n';
+			}
+
+			editor.replaceSelection(finalBlock);
+			new Notice(`Selection encrypted using ${mode === 'keyfiles' ? 'key files' : 'passphrase'}`);
+		} catch (error) {
+			console.error('Encryption failed:', error);
+			new Notice(`Failed to encrypt content: ${error.message}`);
+		}
+	}
+
+	// Comprehensive encryption method for files
+	private async encryptFile(forceMode?: EncryptionMode): Promise<void> {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) {
+			new Notice('No active file');
+			return;
+		}
+
+		try {
+			const mode = await this.determineEncryptionMode(forceMode, true);
+			if (!mode) return; // User cancelled
+
+			const encryptionOptions = await this.getEncryptionOptions(mode);
+			if (!encryptionOptions) return; // User cancelled
+
+			const fileContent = await this.app.vault.read(activeFile);
+			let contentToEncrypt = fileContent.trimEnd();
+			let frontmatter = '';
+
+			if (this.settings.excludeFrontmatter) {
+				const frontmatterRegex = /^---\n([\s\S]*?)\n---\n/;
+				const match = fileContent.match(frontmatterRegex);
+				if (match) {
+					frontmatter = match[0];
+					contentToEncrypt = fileContent.substring(frontmatter.length).trimEnd();
+				}
+			}
+
+			const encrypted = await this.encryptionService.encryptWithMode(
+				contentToEncrypt,
+				mode,
+				encryptionOptions
+			);
+
+			const formattedBlock = this.encryptionService.formatEncryptedBlock(
+				encrypted,
+				encryptionOptions.hint
+			);
+
+			let finalContent = frontmatter + formattedBlock;
+			if (contentToEncrypt.length > 0 && !contentToEncrypt.endsWith('\n')) {
+				finalContent += '\n';
+			}
+
+			await this.app.vault.modify(activeFile, finalContent);
+			new Notice(`File encrypted using ${mode === 'keyfiles' ? 'key files' : 'passphrase'}`);
+		} catch (error) {
+			console.error('File encryption failed:', error);
+			new Notice(`Failed to encrypt file: ${error.message}`);
+		}
+	}
+
+	// Determine which encryption mode to use
+	private async determineEncryptionMode(
+		forceMode?: EncryptionMode,
+		isEncrypting: boolean = true
+	): Promise<EncryptionMode | null> {
+		// If mode is forced, use it
+		if (forceMode) {
+			return forceMode;
+		}
+
+		// Check session override
+		const sessionMode = this.encryptionService.getSessionEncryptionMode();
+		if (sessionMode) {
+			return sessionMode;
+		}
+
+		// Check settings mode
+		if (this.settings.encryptionMode === 'passphrase') {
+			return 'passphrase';
+		} else if (this.settings.encryptionMode === 'keyfiles') {
+			// Validate that key files mode is properly configured
+			const validation = this.encryptionService.validateModeConfiguration(
+				'keyfiles', 
+				this.settings.keyFiles, 
+				this.settings.recipients
+			);
+			
+			if (!validation.valid) {
+				new Notice(`Key files mode configuration error: ${validation.error}`);
+				return 'passphrase'; // Fallback to passphrase
+			}
+			
+			return 'keyfiles';
+		} else {
+			// Mixed mode - ask user
+			const modeModal = new EncryptionModeModal(this.app, isEncrypting);
+			const result = await modeModal.openAndGetMode();
+			
+			if (!result) return null;
+			
+			// Remember session choice if requested
+			if (result.remember) {
+				this.encryptionService.setSessionEncryptionMode(result.mode);
+			}
+			
+			return result.mode;
+		}
+	}
+
+	// Get encryption options based on mode
+	private async getEncryptionOptions(mode: EncryptionMode): Promise<{
+		password?: string;
+		hint?: string;
+		remember?: boolean;
+		keyFilePaths?: string[];
+		recipients?: string[];
+	} | null> {
+		if (mode === 'passphrase') {
+			const modal = new PasswordModal(this.app, true);
+			const result = await modal.openAndGetPassword();
+			return result;
+		} else {
+			// Key files mode
+			const keyFilesToUnlock = this.settings.keyFiles.filter(kf => {
+				const keyFileService = this.encryptionService.getKeyFileService();
+				return !keyFileService?.getCachedIdentity(kf);
+			});
+
+			// If we have locked key files, unlock them
+			if (keyFilesToUnlock.length > 0) {
+				const unlockRequests: KeyFileUnlockRequest[] = keyFilesToUnlock.map(kf => ({
+					filePath: kf,
+					displayName: kf.split('/').pop()
+				}));
+
+				const keyFileModal = new KeyFilePasswordModal(this.app, unlockRequests);
+				const unlockResult = await keyFileModal.openAndUnlockKeyFiles();
+				
+				if (unlockResult.cancelled) {
+					return null;
+				}
+
+				const successful = unlockResult.results.filter(r => r.success);
+				if (successful.length === 0) {
+					new Notice('No key files were successfully unlocked');
+					return null;
+				}
+			}
+
+			// Use default hint if available
+			const hint = this.settings.defaultHint;
+
+			return {
+				keyFilePaths: this.settings.keyFiles,
+				recipients: this.settings.recipients,
+				hint
+			};
+		}
+	}
+
+	// Comprehensive decryption method with intelligent fallback
+	private async decryptContent(
+		el: HTMLElement,
+		encryptedContent: string,
+		hint?: string,
+		ctx?: MarkdownPostProcessorContext
+	): Promise<void> {
+		try {
+			// Try intelligent decryption first (cached methods)
+			try {
+				const result = await this.encryptionService.decryptIntelligent(
+					encryptedContent,
+					this.settings.keyFiles,
+					this.settings.recipients
+				);
+				
+				// Success with cached methods
+				await this.showDecryptedContent(
+					el, 
+					result.decryptedContent, 
+					hint, 
+					ctx, 
+					result.method
+				);
+				return;
+			} catch (error) {
+				// Cached methods failed, need user intervention
+				console.log('Intelligent decryption failed, prompting user:', error.message);
+			}
+
+			// Determine decryption mode based on settings and session
+			const mode = await this.determineEncryptionMode(undefined, false);
+			if (!mode) return; // User cancelled
+
+			let decryptedContent: string;
+			let decryptionMethod: string;
+
+			if (mode === 'passphrase') {
+				// Use passphrase decryption
+				const modal = new PasswordModal(this.app, false, hint);
+				const result = await modal.openAndGetPassword();
+				if (!result) return;
+
+				decryptedContent = await this.encryptionService.decrypt(encryptedContent, result.password);
+				decryptionMethod = 'passphrase';
+
+				// Store password for session if requested
+				if (result.remember) {
+					// Store the password in the session cache
+					this.encryptionService['sessionPasswords'].set(encryptedContent, result.password);
+				}
+			} else {
+				// Use key files decryption
+				const keyFilesToUnlock = this.settings.keyFiles.filter(kf => {
+					const keyFileService = this.encryptionService.getKeyFileService();
+					return !keyFileService?.getCachedIdentity(kf);
+				});
+
+				// Unlock key files if needed
+				if (keyFilesToUnlock.length > 0) {
+					const unlockRequests: KeyFileUnlockRequest[] = keyFilesToUnlock.map(kf => ({
+						filePath: kf,
+						displayName: kf.split('/').pop()
+					}));
+
+					const keyFileModal = new KeyFilePasswordModal(this.app, unlockRequests);
+					const unlockResult = await keyFileModal.openAndUnlockKeyFiles();
+					
+					if (unlockResult.cancelled) {
+						return;
+					}
+
+					const successful = unlockResult.results.filter(r => r.success);
+					if (successful.length === 0) {
+						new Notice('No key files were successfully unlocked');
+						return;
+					}
+				}
+
+				// Try decryption with available identities
+				const keyFileService = this.encryptionService.getKeyFileService()!;
+				const identities: string[] = [];
+				const usedKeyFiles: string[] = [];
+
+				for (const keyFile of this.settings.keyFiles) {
+					const cached = keyFileService.getCachedIdentity(keyFile);
+					if (cached?.identity) {
+						identities.push(cached.identity);
+						usedKeyFiles.push(keyFile);
+					}
+				}
+
+				if (identities.length === 0) {
+					new Notice('No unlocked key files available for decryption');
+					return;
+				}
+
+				decryptedContent = await this.encryptionService.decryptWithOptions(encryptedContent, {
+					identities
+				});
+				decryptionMethod = `keyfiles(${usedKeyFiles.length})`;
+			}
+
+			// Show decrypted content
+			await this.showDecryptedContent(el, decryptedContent, hint, ctx, decryptionMethod);
+
+		} catch (error) {
+			console.error('Decryption failed:', error);
+			new Notice(`Failed to decrypt content: ${error.message}`);
+		}
+	}
+
+	// Show decrypted content with edit interface
+	private async showDecryptedContent(
+		el: HTMLElement,
+		decryptedContent: string,
+		hint?: string,
+		ctx?: MarkdownPostProcessorContext,
+		decryptionMethod?: string
+	): Promise<void> {
+		el.empty();
+
+		// Show decryption method info
+		if (decryptionMethod) {
+			const methodInfo = el.createDiv({ cls: 'age-encrypt-method-info' });
+			methodInfo.createSpan({ 
+				text: `Decrypted using: ${decryptionMethod.replace('_', ' ')}`,
+				cls: 'age-encrypt-method-text'
+			});
+		}
+
+		// Calculate number of lines in decrypted text
+		const lineCount = decryptedContent.split('\n').length;
+		const height = lineCount * 22 + 16;
+
+		// Create editable textarea with dynamic height
+		const textarea = el.createEl('textarea', {
+			text: decryptedContent,
+			cls: 'age-encrypt-textarea'
+		});
+
+		// Set initial height and font size
+		textarea.style.height = `${height}px`;
+
+		// Create button container
+		const buttonContainer = el.createDiv({
+			cls: 'age-encrypt-button-container'
+		});
+
+		// Create save encrypted button
+		const saveEncryptedButton = buttonContainer.createEl('button', {
+			text: 'Save encrypted',
+			cls: 'age-encrypt-button'
+		});
+
+		// Create save as plain text button
+		const savePlainTextButton = buttonContainer.createEl('button', {
+			text: 'Save as plain text',
+			cls: 'age-encrypt-button age-encrypt-button-secondary'
+		});
+
+		// Get file and position information
+		const file = this.app.workspace.getActiveFile();
+		const startLine = ctx?.getSectionInfo(el)?.lineStart || 0;
+		const endLine = ctx?.getSectionInfo(el)?.lineEnd || 0;
+
+		saveEncryptedButton.onclick = async () => {
+			try {
+				const editedContent = textarea.value;
+				
+				// Determine encryption mode for re-encryption
+				const mode = await this.determineEncryptionMode(undefined, true);
+				if (!mode) return;
+
+				const encryptionOptions = await this.getEncryptionOptions(mode);
+				if (!encryptionOptions) return;
+
+				const encrypted = await this.encryptionService.encryptWithMode(
+					editedContent,
+					mode,
+					encryptionOptions
+				);
+				
+				const formattedBlock = this.encryptionService.formatEncryptedBlock(
+					encrypted,
+					encryptionOptions.hint || hint
+				);
+
+				await this.updateFileContent(file, startLine, endLine, formattedBlock);
+				new Notice(`Content re-encrypted using ${mode === 'keyfiles' ? 'key files' : 'passphrase'}`);
+			} catch (error) {
+				console.error('Re-encryption failed:', error);
+				new Notice(`Failed to re-encrypt content: ${error.message}`);
+			}
+		};
+
+		savePlainTextButton.onclick = async () => {
+			try {
+				const editedContent = textarea.value;
+				await this.updateFileContent(file, startLine, endLine, editedContent);
+				new Notice('Saved as plain text');
+			} catch (error) {
+				console.error('Save as plain text failed:', error);
+				new Notice(`Failed to save as plain text: ${error.message}`);
+			}
+		};
 	}
 }
