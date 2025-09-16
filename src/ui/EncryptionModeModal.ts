@@ -114,10 +114,8 @@ export class EncryptionModeModal extends Modal {
             infoDiv.createEl('h4', { text: 'Key Files Mode' });
             infoDiv.createEl('p', { text: 'Uses your configured age key files for encryption/decryption.' });
             infoDiv.createEl('ul').innerHTML = `
-                <li>More secure - no need to remember passwords</li>
-                <li>Requires key files to be unlocked with their passphrases</li>
-                <li>Can encrypt for multiple recipients at once</li>
-                <li>Content can be decrypted by anyone with the corresponding private keys</li>
+                <li>No need to remember passwords</li>
+                <li>Requires encrypted key files</li>
             `;
         } else {
             const infoDiv = container.createDiv({ cls: 'age-encrypt-mode-details' });

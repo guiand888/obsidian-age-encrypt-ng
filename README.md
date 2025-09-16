@@ -1,9 +1,26 @@
-# Age Encryption Plugin
+# Age Encrypt NG
 
-A plugin for Obsidian that provides [age-based](https://github.com/FiloSottile/age) encryption for your notes.
+Fork and rewrite of [obsidian-age-encrypt](https://github.com/mr-1311/obsidian-age-encrypt) by Metin Ur. Provides advanced [age encryption](https://github.com/FiloSottile/age) for Obsidian notes with key file support and enhanced workflows.
+
+## New Features
+- Age key file encryption (.age identity files)
+- Dual encryption modes: passphrase and key files
+- Session management for passwords and identities
+- Encryption method metadata in blocks
+- Enhanced UI with specialized modals
+- Intelligent decryption with method detection
+- Mixed mode operation (choose per-encryption)
+- Command palette expansion with explicit modes
+- Remember toggles for session persistence
+- External key file support with path expansion
+- Comprehensive settings interface
+- Improved error handling and validation
 
 > [!CAUTION]
 > **This plugin comes with NO WARRANTY and NO RESPONSIBILITY for any data loss or security breaches, use at your own risk**
+
+<!--
+Original README content commented out for later rewrite:
 
 ![](./docs/showcase.gif)
 
@@ -42,3 +59,4 @@ age -d secret.age
 
 ## License
 MIT License
+-->

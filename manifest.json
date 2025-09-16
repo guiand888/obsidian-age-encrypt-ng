@@ -1,10 +1,10 @@
 {
-	"id": "age-encrypt",
-	"name": "Age Encrypt",
+	"id": "age-encrypt-ng",
+	"name": "Age Encrypt NG",
 	"version": "2.0.0",
 	"minAppVersion": "1.4.0",
-	"description": "Secure content encryption using age encryption library",
-	"author": "Metin Ur",
-	"authorUrl": "https://github.com/mr-1311",
+	"description": "Advanced age encryption with key file support and enhanced workflow",
+	"author": "Guillaume A.",
+	"authorUrl": "https://github.com/guiand888",
 	"isDesktopOnly": false
 }

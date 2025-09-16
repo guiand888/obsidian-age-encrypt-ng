@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-age-encrypt",
+	"name": "obsidian-age-encrypt-ng",
 	"version": "2.0.0",
-	"description": "Secure content encryption using age encryption library for Obsidian",
+	"description": "Advanced age encryption with key file support and enhanced workflow for Obsidian",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -11,9 +11,11 @@
 	"keywords": [
 		"obsidian",
 		"plugin",
-		"encryption"
+		"encryption",
+		"age",
+		"keyfile"
 	],
-	"author": "Your Name",
+	"author": "Guillaume A.",
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "^16.11.6",
