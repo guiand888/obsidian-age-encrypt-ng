@@ -481,6 +481,8 @@ export default class AgeEncryptPlugin extends Plugin {
 			} else {
 				// Use key files decryption
 				const keyFileService = this.encryptionService.getKeyFileService()!;
+				let unlockedIdentities: string[] = [];
+				
 				const keyFilesToUnlock = this.settings.keyFiles.filter(kf => {
 					return !keyFileService?.getCachedIdentity(kf);
 				});
@@ -505,41 +507,51 @@ export default class AgeEncryptPlugin extends Plugin {
 						return;
 					}
 
-					// Cache identities for successful unlocks where remember is true
+					// Get identities from successful unlocks for immediate use in decryption
+					// and cache them only when remember is true
 					for (const result of successful) {
-						if (result.remember && result.passphrase) {
+						if (result.passphrase) {
 							try {
-								// Decrypt again to get identities for caching
+								// Get identities for immediate decryption use
 								const identities = await keyFileService.decryptKeyFile(result.filePath, result.passphrase, false);
-								await keyFileService.cacheIdentitiesForKeyFile(result.filePath, identities);
+								unlockedIdentities.push(...identities);
+								
+								// Cache identities only if remember is true
+								if (result.remember) {
+									await keyFileService.cacheIdentitiesForKeyFile(result.filePath, identities);
+								}
 							} catch (error) {
-								console.warn(`Failed to cache identities for ${result.filePath}:`, error);
+								console.warn(`Failed to process key file ${result.filePath}:`, error);
 							}
 						}
 					}
 				}
 
-				// Try decryption with available identities
-				const identities: string[] = [];
+				// Collect identities from both cached and just-unlocked sources
+				const cachedIdentities: string[] = [];
 				const usedKeyFiles: string[] = [];
 
+				// Get cached identities
 				for (const keyFile of this.settings.keyFiles) {
 					const cached = keyFileService.getCachedIdentity(keyFile);
 					if (cached?.identity) {
-						identities.push(cached.identity);
+						cachedIdentities.push(cached.identity);
 						usedKeyFiles.push(keyFile);
 					}
 				}
 
-				if (identities.length === 0) {
+				// Combine cached and newly unlocked identities
+				const allIdentities = [...cachedIdentities, ...unlockedIdentities];
+
+				if (allIdentities.length === 0) {
 					new Notice('No unlocked key files available for decryption');
 					return;
 				}
 
 				decryptedContent = await this.encryptionService.decryptWithOptions(encryptedContent, {
-					identities
+					identities: allIdentities
 				});
-				decryptionMethod = `keyfiles(${usedKeyFiles.length})`;
+				decryptionMethod = `keyfiles(${allIdentities.length})`;
 			}
 
 			// Show decrypted content
