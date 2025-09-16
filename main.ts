@@ -153,6 +153,15 @@ export default class AgeEncryptPlugin extends Plugin {
 				await this.encryptFile('keyfiles');
 			}
 		});
+
+		// Utility command to clear all cached data
+		this.addCommand({
+			id: 'clear-all-cached-data',
+			name: 'Clear all remembered passphrases and key files',
+			callback: async () => {
+				await this.clearAllCachedData();
+			}
+		});
 	}
 
 	async loadSettings(): Promise<void> {
@@ -581,5 +590,33 @@ export default class AgeEncryptPlugin extends Plugin {
 				new Notice(`Failed to save as plain text: ${error.message}`);
 			}
 		};
+	}
+
+	// Clear all cached passphrases and key files
+	private async clearAllCachedData(): Promise<void> {
+		try {
+			// Get counts before clearing for user feedback
+			const keyFileService = this.encryptionService.getKeyFileService();
+			const keyFileCount = keyFileService ? keyFileService.getAllCachedIdentities().length : 0;
+			const sessionPasswordCount = this.encryptionService['sessionPasswords'].size;
+			const hasSessionMode = this.encryptionService.getSessionEncryptionMode() !== undefined;
+			
+			// Clear all session data from encryption service
+			this.encryptionService.clearAllCaches();
+			
+			const clearedItems: string[] = [];
+			if (sessionPasswordCount > 0) clearedItems.push(`${sessionPasswordCount} session password(s)`);
+			if (keyFileCount > 0) clearedItems.push(`${keyFileCount} unlocked key file(s)`);
+			if (hasSessionMode) clearedItems.push('session encryption mode preference');
+			
+			if (clearedItems.length > 0) {
+				new Notice(`Cleared cached data:\n- ${clearedItems.join('\n- ')}`);
+			} else {
+				new Notice('No cached data to clear');
+			}
+		} catch (error) {
+			console.error('Failed to clear cached data:', error);
+			new Notice('Failed to clear some cached data. Check console for details.');
+		}
 	}
 }
