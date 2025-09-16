@@ -15,10 +15,12 @@ export class EncryptionModeModal extends Modal {
 
     constructor(
         app: App,
-        isEncrypting: boolean = true
+        isEncrypting: boolean = true,
+        defaultRemember: boolean = false
     ) {
         super(app);
         this.isEncrypting = isEncrypting;
+        this.rememberChoice = defaultRemember;
     }
 
     async openAndGetMode(): Promise<EncryptionModeResult | null> {

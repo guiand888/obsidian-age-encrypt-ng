@@ -10,7 +10,7 @@ export class PasswordModal extends Modal {
     private password: string = '';
     private confirmPassword: string = '';
     private hint: string = '';
-    private remember: boolean = true;
+    private remember: boolean = false;
     private isEncrypting: boolean;
     private errorEl: HTMLElement | null = null;
     private resolve: (value: PasswordPromptResult | null) => void;
@@ -18,10 +18,12 @@ export class PasswordModal extends Modal {
     constructor(
         app: App,
         isEncrypting: boolean = false,
-        existingHint?: string
+        existingHint?: string,
+        defaultRemember: boolean = false
     ) {
         super(app);
         this.isEncrypting = isEncrypting;
+        this.remember = defaultRemember;
     }
 
     async openAndGetPassword(): Promise<PasswordPromptResult | null> {

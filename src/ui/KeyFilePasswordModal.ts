@@ -24,18 +24,22 @@ export class KeyFilePasswordModal extends Modal {
     private results: KeyFileUnlockResult[] = [];
     private currentPassphrase: string = '';
     private rememberPassphrase: boolean = false;
+    private defaultRemember: boolean = false;
     private resolve: (value: KeyFilePasswordResult) => void;
     private errorEl: HTMLElement | null = null;
 
     constructor(
         app: App,
-        keyFiles: KeyFileUnlockRequest[]
+        keyFiles: KeyFileUnlockRequest[],
+        defaultRemember: boolean = false
     ) {
         super(app);
         this.keyFiles = keyFiles.filter(kf => kf.filePath); // Ensure valid entries
         if (this.keyFiles.length === 0) {
             throw new Error('No key files provided to unlock');
         }
+        this.defaultRemember = defaultRemember;
+        this.rememberPassphrase = defaultRemember;
     }
 
     async openAndUnlockKeyFiles(): Promise<KeyFilePasswordResult> {
@@ -228,7 +232,7 @@ export class KeyFilePasswordModal extends Modal {
     private moveToNext(): void {
         this.currentIndex++;
         this.currentPassphrase = ''; // Reset for next file
-        this.rememberPassphrase = false; // Reset remember flag for next file
+        this.rememberPassphrase = this.defaultRemember; // Reset remember flag to default for next file
         
         if (this.currentIndex >= this.keyFiles.length) {
             // All done

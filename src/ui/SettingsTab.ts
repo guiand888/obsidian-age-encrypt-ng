@@ -67,6 +67,16 @@ export class AgeEncryptSettingTab extends PluginSettingTab {
                     this.plugin.settings.defaultHint = value || undefined;
                     await this.plugin.saveSettings();
                 }));
+
+        new Setting(containerEl)
+            .setName('Remember by default')
+            .setDesc('Default state for "Remember for this session" toggles in password/key file prompts')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.defaultRememberSession)
+                .onChange(async (value) => {
+                    this.plugin.settings.defaultRememberSession = value;
+                    await this.plugin.saveSettings();
+                }));
     }
 
     private displayKeyFileSettings(containerEl: HTMLElement): void {

@@ -18,6 +18,8 @@ export interface EncryptionOptions {
 export interface AgeEncryptSettings {
     defaultHint?: string;
     excludeFrontmatter: boolean;
+    // Session management
+    defaultRememberSession: boolean;  // Default state for remember toggles
     // Key file configuration
     keyFiles: string[];              // Paths to .age encrypted key files
     recipients: string[];            // Direct recipient public keys (age1...)
@@ -27,6 +29,7 @@ export interface AgeEncryptSettings {
 
 export const DEFAULT_SETTINGS: AgeEncryptSettings = {
     excludeFrontmatter: true,
+    defaultRememberSession: false,  // Default to NOT remembering
     keyFiles: [],
     recipients: [],
     encryptionMode: 'passphrase'  // Default to current behavior

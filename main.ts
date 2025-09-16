@@ -310,8 +310,8 @@ export default class AgeEncryptPlugin extends Plugin {
 			return 'keyfiles';
 		} else {
 			// Mixed mode - ask user
-			const modeModal = new EncryptionModeModal(this.app, isEncrypting);
-			const result = await modeModal.openAndGetMode();
+				const modeModal = new EncryptionModeModal(this.app, isEncrypting, this.settings.defaultRememberSession);
+				const result = await modeModal.openAndGetMode();
 			
 			if (!result) return null;
 			
@@ -333,7 +333,7 @@ export default class AgeEncryptPlugin extends Plugin {
 		recipients?: string[];
 	} | null> {
 		if (mode === 'passphrase') {
-			const modal = new PasswordModal(this.app, true);
+			const modal = new PasswordModal(this.app, true, undefined, this.settings.defaultRememberSession);
 			const result = await modal.openAndGetPassword();
 			return result;
 		} else {
@@ -350,7 +350,7 @@ export default class AgeEncryptPlugin extends Plugin {
 					displayName: kf.split('/').pop()
 				}));
 
-				const keyFileModal = new KeyFilePasswordModal(this.app, unlockRequests);
+				const keyFileModal = new KeyFilePasswordModal(this.app, unlockRequests, this.settings.defaultRememberSession);
 				const unlockResult = await keyFileModal.openAndUnlockKeyFiles();
 				
 				if (unlockResult.cancelled) {
@@ -414,7 +414,7 @@ export default class AgeEncryptPlugin extends Plugin {
 
 			if (mode === 'passphrase') {
 				// Use passphrase decryption
-				const modal = new PasswordModal(this.app, false, hint);
+				const modal = new PasswordModal(this.app, false, hint, this.settings.defaultRememberSession);
 				const result = await modal.openAndGetPassword();
 				if (!result) return;
 
@@ -440,7 +440,7 @@ export default class AgeEncryptPlugin extends Plugin {
 						displayName: kf.split('/').pop()
 					}));
 
-					const keyFileModal = new KeyFilePasswordModal(this.app, unlockRequests);
+					const keyFileModal = new KeyFilePasswordModal(this.app, unlockRequests, this.settings.defaultRememberSession);
 					const unlockResult = await keyFileModal.openAndUnlockKeyFiles();
 					
 					if (unlockResult.cancelled) {
