@@ -90,7 +90,7 @@ export default class AgeEncryptPlugin extends Plugin {
 			});
 
 			decryptButton.onclick = async () => {
-				await this.decryptContent(el, content, hint, ctx);
+				await this.decryptContent(el, content, hint, ctx, method);
 			};
 			} catch (error) {
 				console.error('Failed to process age codeblock:', error);
@@ -307,7 +307,8 @@ export default class AgeEncryptPlugin extends Plugin {
 	private async determineEncryptionMode(
 		forceMode?: EncryptionMode,
 		isEncrypting: boolean = true,
-		forceChoice: boolean = false
+		forceChoice: boolean = false,
+		suggestedMode?: EncryptionMode
 	): Promise<{ mode: EncryptionMode; rememberPreference?: boolean } | null> {
 		// If mode is forced, use it
 		if (forceMode) {
@@ -316,7 +317,7 @@ export default class AgeEncryptPlugin extends Plugin {
 
 		// If forcing user choice (e.g., when method is unknown), always show modal
 		if (forceChoice) {
-			const modeModal = new EncryptionModeModal(this.app, isEncrypting, this.settings.defaultRememberSession);
+			const modeModal = new EncryptionModeModal(this.app, isEncrypting, this.settings.defaultRememberSession, suggestedMode);
 			const result = await modeModal.openAndGetMode();
 			
 			if (!result) return null;
@@ -354,7 +355,7 @@ export default class AgeEncryptPlugin extends Plugin {
 			return { mode: 'keyfiles' };
 		} else {
 			// Mixed mode - ask user
-				const modeModal = new EncryptionModeModal(this.app, isEncrypting, this.settings.defaultRememberSession);
+				const modeModal = new EncryptionModeModal(this.app, isEncrypting, this.settings.defaultRememberSession, suggestedMode);
 				const result = await modeModal.openAndGetMode();
 			
 			if (!result) return null;
@@ -467,7 +468,8 @@ export default class AgeEncryptPlugin extends Plugin {
 		el: HTMLElement,
 		encryptedContent: string,
 		hint?: string,
-		ctx?: MarkdownPostProcessorContext
+		ctx?: MarkdownPostProcessorContext,
+		knownMethod?: string
 	): Promise<void> {
 		try {
 			// Try intelligent decryption first (cached methods)
@@ -492,8 +494,15 @@ export default class AgeEncryptPlugin extends Plugin {
 				console.log('Intelligent decryption failed, prompting user:', error.message);
 			}
 
-			// Determine decryption mode - always prompt for choice when method is unknown
-			const modeResult = await this.determineEncryptionMode(undefined, false, true); // Force choice for decryption
+			// Determine decryption mode - use known method to pre-select option
+			let suggestedMode: EncryptionMode | undefined;
+			if (knownMethod === 'passphrase') {
+				suggestedMode = 'passphrase';
+			} else if (knownMethod && knownMethod.startsWith('key file')) {
+				suggestedMode = 'keyfiles';
+			}
+			
+			const modeResult = await this.determineEncryptionMode(undefined, false, true, suggestedMode);
 			if (!modeResult) return; // User cancelled
 
 			// Use user's remember preference from mode selection, fall back to global default
