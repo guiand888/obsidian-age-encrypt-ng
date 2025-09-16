@@ -347,8 +347,10 @@ export default class AgeEncryptPlugin extends Plugin {
 			return result;
 		} else {
 			// Key files mode
+			const keyFileService = this.encryptionService.getKeyFileService();
+			let unlockedRecipients: string[] = [];
+			
 			const keyFilesToUnlock = this.settings.keyFiles.filter(kf => {
-				const keyFileService = this.encryptionService.getKeyFileService();
 				return !keyFileService?.getCachedIdentity(kf);
 			});
 
@@ -372,19 +374,41 @@ export default class AgeEncryptPlugin extends Plugin {
 					return null;
 				}
 
-				// Cache identities for successful unlocks where remember is true
-				const keyFileService = this.encryptionService.getKeyFileService();
+				// Get recipients from all successful unlocks (regardless of remember flag)
+				// and cache identities only when remember is true
 				if (keyFileService) {
 					for (const result of successful) {
-						if (result.remember && result.passphrase) {
+						if (result.passphrase) {
 							try {
-								// Decrypt again to get identities for caching
+								// Decrypt to get identities (don't cache yet)
 								const identities = await keyFileService.decryptKeyFile(result.filePath, result.passphrase, false);
-								await keyFileService.cacheIdentitiesForKeyFile(result.filePath, identities);
+								
+								// Convert identities to recipients for encryption
+								for (const identity of identities) {
+									const { identityToRecipient } = await import('age-encryption');
+									const recipient = await identityToRecipient(identity);
+									unlockedRecipients.push(recipient);
+								}
+								
+								// Cache identities only if remember is true
+								if (result.remember) {
+									await keyFileService.cacheIdentitiesForKeyFile(result.filePath, identities);
+								}
 							} catch (error) {
-								console.warn(`Failed to cache identities for ${result.filePath}:`, error);
+								console.warn(`Failed to process key file ${result.filePath}:`, error);
 							}
 						}
+					}
+				}
+			}
+
+			// Get recipients from cached identities too (for files already unlocked)
+			const cachedRecipients: string[] = [];
+			if (keyFileService) {
+				for (const keyFile of this.settings.keyFiles) {
+					const cached = keyFileService.getCachedIdentity(keyFile);
+					if (cached?.recipient) {
+						cachedRecipients.push(cached.recipient);
 					}
 				}
 			}
@@ -392,9 +416,12 @@ export default class AgeEncryptPlugin extends Plugin {
 			// Use default hint if available
 			const hint = this.settings.defaultHint;
 
+			// Combine all recipient sources: configured + cached + newly unlocked
+			const allRecipients = [...this.settings.recipients, ...cachedRecipients, ...unlockedRecipients];
+
 			return {
 				keyFilePaths: this.settings.keyFiles,
-				recipients: this.settings.recipients,
+				recipients: allRecipients,
 				hint
 			};
 		}
