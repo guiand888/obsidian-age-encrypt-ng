@@ -306,11 +306,27 @@ export default class AgeEncryptPlugin extends Plugin {
 	// Determine which encryption mode to use
 	private async determineEncryptionMode(
 		forceMode?: EncryptionMode,
-		isEncrypting: boolean = true
+		isEncrypting: boolean = true,
+		forceChoice: boolean = false
 	): Promise<EncryptionMode | null> {
 		// If mode is forced, use it
 		if (forceMode) {
 			return forceMode;
+		}
+
+		// If forcing user choice (e.g., when method is unknown), always show modal
+		if (forceChoice) {
+			const modeModal = new EncryptionModeModal(this.app, isEncrypting, this.settings.defaultRememberSession);
+			const result = await modeModal.openAndGetMode();
+			
+			if (!result) return null;
+			
+			// Remember session choice if requested
+			if (result.remember) {
+				this.encryptionService.setSessionEncryptionMode(result.mode);
+			}
+			
+			return result.mode;
 		}
 
 		// Check session override
@@ -476,8 +492,8 @@ export default class AgeEncryptPlugin extends Plugin {
 				console.log('Intelligent decryption failed, prompting user:', error.message);
 			}
 
-			// Determine decryption mode based on settings and session
-			const mode = await this.determineEncryptionMode(undefined, false);
+			// Determine decryption mode - always prompt for choice when method is unknown
+			const mode = await this.determineEncryptionMode(undefined, false, true); // Force choice for decryption
 			if (!mode) return; // User cancelled
 
 			let decryptedContent: string;
