@@ -1,7 +1,7 @@
 {
 	"id": "age-encrypt-ng",
 	"name": "Age Encrypt NG",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"minAppVersion": "1.4.0",
 	"description": "Advanced age encryption with key file support and enhanced workflow",
 	"author": "Guillaume A.",
