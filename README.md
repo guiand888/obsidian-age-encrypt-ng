@@ -4,6 +4,9 @@ Fork and rewrite of [obsidian-age-encrypt](https://github.com/mr-1311/obsidian-a
 
 Provides advanced [age encryption](https://github.com/FiloSottile/age) for Obsidian notes with key file support and enhanced workflows.
 
+> [!CAUTION]
+> **This plugin comes with NO WARRANTY and NO RESPONSIBILITY for any data loss or security breaches, use at your own risk**
+
 ## New Features
 - Age key file encryption (.age identity files)
 - Dual encryption modes: passphrase and key files
@@ -18,10 +21,9 @@ Provides advanced [age encryption](https://github.com/FiloSottile/age) for Obsid
 - Comprehensive settings interface
 - Improved error handling and validation
 
-> [!CAUTION]
-> **This plugin comes with NO WARRANTY and NO RESPONSIBILITY for any data loss or security breaches, use at your own risk**
-
 ## User Guide
+
+![](./.screenshots/age-encrypt-ng-settings.png)
 
 ### Encryption Methods
 
