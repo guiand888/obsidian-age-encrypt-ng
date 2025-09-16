@@ -21,9 +21,5 @@ data.json
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
 
-# Warp AI files
-WARP.md
-
-# Age test files
-.age/
-test_encrypted.age
+# Development files (now in private submodule)
+# Note: dev/ submodule directory will be tracked by git submodules
