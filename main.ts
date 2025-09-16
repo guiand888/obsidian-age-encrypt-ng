@@ -35,6 +35,13 @@ export default class AgeEncryptPlugin extends Plugin {
 			ctx: MarkdownPostProcessorContext
 		) => {
 			try {
+				// First, do a quick validation to ensure this is actually an age encrypted block
+				if (!this.isValidAgeBlock(source)) {
+					// Not a valid age block, render as regular code block
+					el.createEl('pre').createEl('code', { text: source });
+					return;
+				}
+				
 				const { content, hint, method } = this.encryptionService.parseEncryptedBlock(source);
 				const decryptButton = el.createEl('button', {
 					cls: 'age-encrypt-decrypt-button',
@@ -678,6 +685,41 @@ export default class AgeEncryptPlugin extends Plugin {
 				new Notice(`Failed to save as plain text: ${error.message}`);
 			}
 		};
+	}
+
+	// Validate if content is actually a valid age encrypted block
+	private isValidAgeBlock(source: string): boolean {
+		const trimmedSource = source.trim();
+		
+		// Must contain both begin and end markers
+		if (!trimmedSource.includes('-----BEGIN AGE ENCRYPTED FILE-----') ||
+			!trimmedSource.includes('-----END AGE ENCRYPTED FILE-----')) {
+			return false;
+		}
+		
+		// Begin marker must come before end marker
+		const beginIndex = trimmedSource.indexOf('-----BEGIN AGE ENCRYPTED FILE-----');
+		const endIndex = trimmedSource.indexOf('-----END AGE ENCRYPTED FILE-----');
+		if (beginIndex === -1 || endIndex === -1 || beginIndex >= endIndex) {
+			return false;
+		}
+		
+		// Must have some content between the markers
+		const contentBetween = trimmedSource.substring(
+			beginIndex + '-----BEGIN AGE ENCRYPTED FILE-----'.length,
+			endIndex
+		).trim();
+		if (contentBetween.length === 0) {
+			return false;
+		}
+		
+		// Content between markers should look like base64 (basic check)
+		const base64Pattern = /^[A-Za-z0-9+/\s=]+$/;
+		if (!base64Pattern.test(contentBetween)) {
+			return false;
+		}
+		
+		return true;
 	}
 
 	// Create method text for encrypted block metadata
