@@ -9,6 +9,7 @@ export interface KeyFileUnlockResult {
     filePath: string;
     passphrase: string;
     success: boolean;
+    remember?: boolean;  // Whether to remember this passphrase
     error?: string;
 }
 
@@ -22,6 +23,7 @@ export class KeyFilePasswordModal extends Modal {
     private currentIndex: number = 0;
     private results: KeyFileUnlockResult[] = [];
     private currentPassphrase: string = '';
+    private rememberPassphrase: boolean = false;
     private resolve: (value: KeyFilePasswordResult) => void;
     private errorEl: HTMLElement | null = null;
 
@@ -111,6 +113,14 @@ export class KeyFilePasswordModal extends Modal {
                 return text;
             });
 
+        // Remember passphrase option
+        new Setting(contentEl)
+            .setName('Remember for this session')
+            .setDesc('Keep this key file unlocked until Obsidian is closed')
+            .addToggle(toggle => toggle
+                .setValue(this.rememberPassphrase)
+                .onChange(value => this.rememberPassphrase = value));
+
         // Buttons
         const buttonContainer = contentEl.createDiv({ cls: 'age-encrypt-button-container' });
         
@@ -180,7 +190,8 @@ export class KeyFilePasswordModal extends Modal {
             this.results.push({
                 filePath: currentKeyFile.filePath,
                 passphrase: this.currentPassphrase,
-                success: true
+                success: true,
+                remember: this.rememberPassphrase
             });
 
             new Notice(`✓ Key file unlocked: ${currentKeyFile.displayName || currentKeyFile.filePath.split('/').pop()}`);
@@ -195,6 +206,7 @@ export class KeyFilePasswordModal extends Modal {
                 filePath: currentKeyFile.filePath,
                 passphrase: this.currentPassphrase,
                 success: false,
+                remember: this.rememberPassphrase,
                 error: errorMessage
             };
         }
@@ -206,6 +218,7 @@ export class KeyFilePasswordModal extends Modal {
             filePath: currentKeyFile.filePath,
             passphrase: '',
             success: false,
+            remember: false,
             error: 'Skipped by user'
         });
         
@@ -215,6 +228,7 @@ export class KeyFilePasswordModal extends Modal {
     private moveToNext(): void {
         this.currentIndex++;
         this.currentPassphrase = ''; // Reset for next file
+        this.rememberPassphrase = false; // Reset remember flag for next file
         
         if (this.currentIndex >= this.keyFiles.length) {
             // All done
